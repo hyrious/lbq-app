@@ -10,6 +10,7 @@ import { app, BrowserWindow, clipboard, ipcMain, nativeImage, net, protocol, she
 interface ImageRequest {
   path?: string;
   scale?: number;
+  width?: number;
 }
 
 interface WindowState {
@@ -143,15 +144,16 @@ async function loadImage(input: ImageRequest) {
     let image = nativeImage.createFromPath(imagePath);
     if (image.isEmpty()) throw new Error(`Unsupported or unreadable image: ${input.path}`);
 
-    if (input.scale != null) {
-      if (!Number.isFinite(input.scale) || input.scale <= 0) throw new Error('Scale must be a positive number.');
+    if (input.scale != null || input.width != null) {
       const { width, height } = image.getSize();
-      const scaledWidth = Math.round(width * input.scale);
-      const scaledHeight = Math.round(height * input.scale);
-      if (!(0 < scaledWidth && scaledWidth <= 3000 && 0 < scaledHeight && scaledHeight <= 3000)) {
-        throw new Error('Scaled dimensions must be between 1 and 3000 pixels.');
+      const scale = input.scale ?? Number.NaN;
+      const targetWidth = Math.round(input.width ?? width * scale);
+      const targetHeight = Math.round(height * targetWidth / width);
+      if (!Number.isFinite(targetWidth) || !(0 < targetWidth && targetWidth <= 3000
+          && 0 < targetHeight && targetHeight <= 3000)) {
+        throw new Error('Resized dimensions must be between 1 and 3000 pixels.');
       }
-      image = image.resize({ width: scaledWidth });
+      image = image.resize({ width: targetWidth });
       transformed = true;
     }
     return { image, transformed };

@@ -18,8 +18,10 @@ npm run dev
 The install script downloads Electron 40.1.0 and editor type definitions without adding npm runtime dependencies. Development runs TypeScript directly through Electron's bundled Node.js runtime.
 
 Drop an image anywhere in the window or paste an image file. Image Portal
-previews it and writes PNG image data to the native clipboard. The scale control
-resizes the source and copies the result again. HEIC and HEIF files are converted
+previews it and writes PNG image data to the native clipboard. In the resize
+control, values below 20 are scale factors and values of 20 or more are target
+widths; the height follows the source aspect ratio. Resizing copies the result
+again. HEIC and HEIF files are converted
 with macOS `sips` before previewing and copying. A toast reports the result
 instead of a modal alert.
 

@@ -67,17 +67,16 @@ async function load(file?: File) {
 
 async function resize() {
   if (!currentPath || !originalSize) return;
-  const scale = Number(scaleInput.value);
-  const width = Math.round(originalSize.width * scale);
-  const height = Math.round(originalSize.height * scale);
-  if (!Number.isFinite(scale) || !(0 < width && width <= 3000 && 0 < height && height <= 3000)) {
-    return showToast('Scaled dimensions must be between 1 and 3000 pixels.', 'error');
+  const value = Number(scaleInput.value);
+  const width = value < 20 ? Math.round(originalSize.width * value) : Math.round(value);
+  const height = Math.round(originalSize.height * width / originalSize.width);
+  if (!Number.isFinite(value) || !(0 < width && width <= 3000 && 0 < height && height <= 3000)) {
+    return showToast('Resized dimensions must be between 1 and 3000 pixels.', 'error');
   }
 
   try {
-    const request = { path: currentPath, scale };
+    const request = value < 20 ? { path: currentPath, scale: value } : { path: currentPath, width };
     const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', request));
-    originalSize = result;
     showPreview(result, currentPath);
     showToast('Copied to clipboard');
   } catch (error) {
