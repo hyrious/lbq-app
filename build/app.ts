@@ -15,7 +15,7 @@ const appResources = join(destination, 'Contents', 'Resources', 'app');
 const stampPath = join(appResources, '.electron-version');
 const bundleIdentifier = 'com.hyrious.imageportal';
 const sourceFiles = ['main.ts', 'preload.ts', 'index.html', 'renderer.ts', 'style.css', 'package.json', 'tsconfig.json'];
-const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign'];
+const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign', 'osascript', 'sleep'];
 const helperBundles: HelperBundle[] = [
   { bundle: 'Electron Helper.app', suffix: 'helper', name: 'Image Portal Helper' },
   { bundle: 'Electron Helper (Renderer).app', suffix: 'helper.Renderer', name: 'Image Portal Helper (Renderer)' },
@@ -48,6 +48,7 @@ writeFileSync(stampPath, stamp);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
 refreshLaunchServices();
+quitRunningApp();
 exec('open', [destination]);
 
 function needsRebuild(): boolean {
@@ -96,6 +97,19 @@ function buildBundle() {
 function refreshLaunchServices() {
   const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister';
   exec(lsregister, ['-f', destination]);
+}
+
+function quitRunningApp() {
+  const application = `application id "${bundleIdentifier}"`;
+  if (execFileSync('osascript', ['-e', `${application} is running`], { encoding: 'utf8' }).trim() != 'true') return;
+
+  console.log('Closing the running Image Portal instance.');
+  exec('osascript', ['-e', `tell ${application} to quit`]);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (execFileSync('osascript', ['-e', `${application} is running`], { encoding: 'utf8' }).trim() != 'true') return;
+    execFileSync('sleep', ['0.1']);
+  }
+  throw new Error('Image Portal did not quit within 5 seconds.');
 }
 
 function requireTool(tool: string) {
