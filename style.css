@@ -81,7 +81,12 @@ body {
   background: color-mix(in srgb, black 55%, transparent);
   backdrop-filter: blur(20px);
   color: white;
+  white-space: nowrap;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.toolbar > * {
+  flex: none;
 }
 
 .dimension {
@@ -131,13 +136,15 @@ body {
 
 .toasts {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: column-reverse;
+  align-items: center;
   gap: 8px;
   z-index: 3;
+  pointer-events: none;
 }
 
 .toast {
@@ -158,7 +165,7 @@ body {
 
 .toast.leaving {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(-4px);
 }
 
 .hidden {
