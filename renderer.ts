@@ -19,7 +19,7 @@ declare global {
   }
 }
 
-const dropArea = getElement<HTMLDivElement>('drop-area');
+const dropSurface = getElement<HTMLDivElement>('drop-surface');
 const previewPanel = getElement<HTMLDivElement>('preview-panel');
 const preview = getElement<HTMLImageElement>('preview');
 const dimension = getElement<HTMLSpanElement>('dimension');
@@ -31,14 +31,14 @@ let currentPath = '';
 let originalSize: ImageSize | undefined;
 let previewURL = '';
 
-dropArea.ondragover = previewPanel.ondragover = event => {
+dropSurface.ondragover = previewPanel.ondragover = event => {
   event.preventDefault();
-  dropArea.classList.add('active');
+  dropSurface.classList.add('active');
 };
-dropArea.ondragleave = previewPanel.ondragleave = () => dropArea.classList.remove('active');
-dropArea.ondrop = previewPanel.ondrop = event => {
+dropSurface.ondragleave = previewPanel.ondragleave = () => dropSurface.classList.remove('active');
+dropSurface.ondrop = previewPanel.ondrop = event => {
   event.preventDefault();
-  dropArea.classList.remove('active');
+  dropSurface.classList.remove('active');
   void load(event.dataTransfer?.files[0]);
 };
 document.onpaste = event => void load(event.clipboardData?.files[0]);

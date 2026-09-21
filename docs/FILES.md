@@ -92,9 +92,12 @@ No `on`/`send` surface unless needed.
   centered hint are the only chrome.
 - Loads `renderer.ts` via `<script type="module" src="renderer.ts">`.
 - A toast region and a floating glass toolbar replace the old bottom bar.
+- The `.drop-area` gutter (16px sides/bottom, 44px top) drags the window;
+  the inset `.drop-surface` is the drop target (`no-drag`). The top gutter
+  also covers the traffic lights.
 - macOS look: the window uses `vibrancy: 'under-window'` and
-  `titleBarStyle: 'hiddenInset'`, so `body` is transparent and the dashed
-  outline is inset below a draggable strip that sits under the traffic lights.
+  `titleBarStyle: 'hiddenInset'`, so `body` is transparent and a faint fill
+  behind the dashed outline keeps the hint legible over any blurred desktop.
 
 ## `build/electron.ts`
 

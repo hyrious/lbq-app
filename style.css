@@ -12,32 +12,34 @@ body {
   font-family: system-ui, sans-serif;
   background: transparent;
   color: CanvasText;
-  /* The whole window is a drop target; the first 38px doubles as a drag strip. */
   -webkit-user-select: none;
   user-select: none;
 }
 
+/* The gutter around the dashed surface drags the window; the surface itself is
+   a drop target. */
 .drop-area {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 44px 16px 16px;
+  -webkit-app-region: drag;
 }
 
 /* A faint fill keeps the outline and hint legible over any vibrancy backdrop. */
-.drop-area::before {
-  content: "";
-  position: absolute;
-  inset: 44px 16px 16px;
+.drop-surface {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px dashed color-mix(in srgb, currentColor 35%, transparent);
   border-radius: 12px;
   background: color-mix(in srgb, CanvasText 4%, transparent);
   transition: border-color 0.15s, background 0.15s;
+  -webkit-app-region: no-drag;
 }
 
-.drop-area.active::before {
+.drop-surface.active {
   border-color: color-mix(in srgb, currentColor 60%, transparent);
   background: color-mix(in srgb, currentColor 10%, transparent);
 }
@@ -47,16 +49,6 @@ body {
   color: color-mix(in srgb, currentColor 55%, transparent);
   font-size: 15px;
   letter-spacing: 0.01em;
-}
-
-/* Drag strip under the traffic lights. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0 0 auto 0;
-  height: 38px;
-  -webkit-app-region: drag;
-  z-index: 1;
 }
 
 .preview {
