@@ -1,0 +1,13 @@
+{
+  "name": "image-portal",
+  "type": "module",
+  "main": "main.ts",
+  "private": true,
+  "scripts": {
+    "install": "node build/install.ts",
+    "dev": "node build/electron.ts .",
+    "app": "node build/app.ts",
+    "app:sync": "node build/dev-sync.ts",
+    "app:open": "open build/ImagePortal.app"
+  }
+}

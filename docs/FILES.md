@@ -1,0 +1,172 @@
+# File responsibilities
+
+Repository layout:
+
+```
+image-portal/
+├── package.json            # type:module, main:main.ts, scripts, pinned versions
+├── tsconfig.json           # erasableSyntaxOnly, noEmit, nodenext
+├── .gitignore              # .electron, node_modules, build/ImagePortal.app
+├── icon.png                # app icon source (dev dock icon + packaged icns)
+├── main.ts                 # main process entry
+├── preload.ts              # ipc bridge (self-contained, no import)
+├── index.html              # window document
+├── renderer.ts             # drag/drop, preview, controls
+├── style.css               # migrated from the reference page
+├── docs/                   # this design set
+└── build/
+    ├── electron.ts         # download + launch the Electron binary
+    ├── install.ts          # fetch electron / @types/node into node_modules
+    ├── app.ts              # build build/ImagePortal.app
+    └── dev-sync.ts         # copy sources into the built .app (no re-sign)
+```
+
+## `main.ts`
+
+Owns: window lifecycle, protocol, native image pipeline, IPC.
+
+- Call `register()` with the data-URL loader that short-circuits `fs` →
+  `node:original-fs` (ported from the reference project). Do this before
+  `app.whenReady()`.
+- `protocol.registerSchemesAsPrivileged([{ scheme: 'app-file', privileges: {
+  standard, secure, supportFetchAPI, corsEnabled, codeCache } }])`.
+- In `app.whenReady()`: `protocol.handle('app-file', ...)` which maps
+  `app-file://app<path>` back to a `file://` URL, calls `net.fetch`, and if the
+  path ends with `.ts`, runs `stripTypeScriptTypes(body)` and returns
+  `text/javascript; charset=utf-8`. Port verbatim from the reference project.
+- Strip `preload.ts` → `join(app.getPath('userData'), 'preload.js')` at startup.
+- `requestSingleInstanceLock()`; `window-all-closed` → `app.quit()`.
+- Dock / window icon: `icon.png` in dev, bundle icon when `app.isPackaged`.
+- Persist window bounds to `userData/window-state.json` (debounced on `moved`
+  / `resized`), matching the reference project's pattern.
+- `webContents.setWindowOpenHandler` → `shell.openExternal`, deny.
+- Open DevTools only when not packaged.
+
+IPC handlers (all `ipcMain.handle`):
+
+- `copy-image({ path, scale? })`:
+  1. If `path` ends with `.heic`/`.heif` (case-insensitive), convert to a temp
+     PNG with `sips -s format png <in> --out <tmp>`; else use the path as-is.
+  2. `nativeImage.createFromPath(...)`; if `scale` is a finite positive number,
+     `nativeImage.resize({ width: Math.round(w*scale) })`.
+  3. `clipboard.writeImage(image)`.
+  4. Return `{ width, height }` of the written image.
+  Reject with a clear error message on unsupported input.
+- `read-image(path)`: return a data URL (or bytes) so the renderer can preview
+  exactly what will be copied (handles HEIC preview too).
+
+## `preload.ts`
+
+Self-contained. Only `require('electron')`; the typed annotation pattern is
+`: typeof import('electron')` as in the reference project. Expose on
+`window.electron`:
+
+- `webUtils.getPathForFile(file): string`
+- `ipcRenderer.invoke(channel, ...args): Promise<unknown>`
+- `process.platform`, `process.arch`
+
+No `on`/`send` surface unless needed.
+
+## `renderer.ts`
+
+- Drag/drop handlers on the drop zone and preview; `dragover` preventDefault.
+- On drop/paste, take the first file, resolve its path via
+  `window.electron.webUtils.getPathForFile`.
+- Call `read-image` for the preview, `copy-image` to place it on the clipboard.
+- Controls: scale input + "RESIZE" button → call `copy-image` with the parsed
+  scale, then refresh preview. Same guards as the reference (dimensions must be
+  > 0 and ≤ 3000).
+- Window title feedback ("Copied to clipboard", auto-restore) mirroring the
+  reference `setPortalTitle`.
+- No `navigator.clipboard`, no libheif, no canvas re-encoding.
+
+## `index.html` / `style.css`
+
+- Structure and styling migrated from `hyrious/tool/image-portal.html`.
+- Loads `renderer.ts` via `<script type="module" src="renderer.ts">`.
+- `<meta charset>`, `color-scheme`.
+- Any inline `scripts`/`styles` in the reference may stay, but the app-level
+  logic moves to `renderer.ts` + `style.css`.
+
+## `build/electron.ts`
+
+Ported from the reference `zero-dep-electron-app/build/electron.ts`.
+
+- `const electronVersion = '40.1.0'` (single source of truth).
+- `--path` prints the binary path; `--install` downloads + extracts into
+  `.electron/v<version>/`; otherwise it downloads if missing and spawns the
+  binary with the remaining argv, forwarding exit code / signal.
+- Platform-aware paths and the `unzip` / PowerShell fallback plus curl proxy
+  retry, ported as-is.
+
+## `build/install.ts`
+
+Ported from the reference `zero-dep-electron-app/build/install.ts`: fetches
+`electron` types and `@types/node` into `node_modules/` (directly from the
+registry, not via npm install). Used by `npm install` (the `install` script).
+
+## `build/app.ts`
+
+Produces `build/ImagePortal.app`. Steps:
+
+1. Ensure `.electron/v40.1.0/.../Electron.app` exists; if not run
+   `electron.ts --install`.
+2. Remove any previous `build/ImagePortal.app`.
+3. `ditto` the stock `Electron.app` to `build/ImagePortal.app` (preserves
+   signature and xattrs).
+4. `mv Contents/MacOS/Electron Contents/MacOS/ImagePortal`.
+5. `plutil -replace` on the **main** `Contents/Info.plist`:
+   `CFBundleExecutable` = `ImagePortal`,
+   `CFBundleName` = `Image Portal`,
+   `CFBundleDisplayName` = `Image Portal`,
+   `CFBundleIdentifier` = `com.hyrious.imageportal`,
+   `NSHumanReadableCopyright` = project copyright.
+6. For each of the four helper bundles under `Contents/Frameworks/`:
+   `plutil -replace CFBundleIdentifier` to add a stable suffix derived from the
+   main id (e.g. `com.hyrious.imageportal.helper`,
+   `...helper.Renderer`, `...helper.GPU`, `...helper.Plugin`), and set
+   `CFBundleName` to a matching display name. **Do not rename the helper
+   executables** (see DESIGN fact 3).
+7. Icon: build `Contents/Resources/icon.icns` from `icon.png` via `sips`
+   (sizes 16→1024) + `iconutil -c icns`, then set `CFBundleIconFile` = `icon`.
+8. Copy app sources into `Contents/Resources/app/`: `main.ts`, `preload.ts`,
+   `index.html`, `renderer.ts`, `style.css`, `package.json`, `tsconfig.json`.
+   Never copy `build/`, `docs/`, `.electron/`, `.git`, `node_modules`.
+9. `codesign --force --deep --sign - build/ImagePortal.app`.
+10. Print the path and the `cp -R` hint for `/Applications`.
+
+## `build/dev-sync.ts`
+
+- Copy only the app sources (same set as `build/app.ts` step 8) into the
+  existing `build/ImagePortal.app/Contents/Resources/app/`, overwriting.
+- Do **not** touch the binary, plists or signature (DESIGN fact 4: resources
+  are not sealed, so no re-sign is needed).
+- Error out with a hint to run `npm run app` first if the `.app` is missing.
+
+## `package.json`
+
+```jsonc
+{
+  "name": "image-portal",
+  "type": "module",
+  "main": "main.ts",
+  "private": true,
+  "scripts": {
+    "install":  "node build/install.ts",
+    "dev":      "node build/electron.ts .",
+    "app":      "node build/app.ts",
+    "app:sync": "node build/dev-sync.ts",
+    "app:open": "open build/ImagePortal.app"
+  }
+}
+```
+
+No `dependencies`. `devDependencies` may stay empty; types are fetched by
+`build/install.ts`.
+
+## `tsconfig.json`
+
+Enable `strict`, `module: nodenext`, `noEmit`, `skipLibCheck`,
+`erasableSyntaxOnly`, `allowImportingTsExtensions`, `verbatimModuleSyntax`,
+`moduleDetection: force` — matching the reference project so editor type
+checking matches what the runtime can actually execute.
