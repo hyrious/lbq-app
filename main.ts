@@ -122,7 +122,7 @@ async function onReady() {
 
 async function loadImage(input: ImageRequest) {
   if (typeof input?.path != 'string' || input.path.length == 0) {
-    throw new Error('An image file path is required.');
+    throw new Error('请选择本地图片文件。');
   }
 
   let imagePath = input.path;
@@ -135,14 +135,14 @@ async function loadImage(input: ImageRequest) {
       try {
         await execFileAsync('sips', ['-s', 'format', 'png', imagePath, '--out', convertedPath]);
       } catch (error) {
-        throw new Error(`Unable to convert HEIC image with sips: ${String(error)}`);
+        throw new Error(`无法使用 sips 转换 HEIC 图片：${String(error)}`);
       }
       imagePath = convertedPath;
       transformed = true;
     }
 
     let image = nativeImage.createFromPath(imagePath);
-    if (image.isEmpty()) throw new Error(`Unsupported or unreadable image: ${input.path}`);
+    if (image.isEmpty()) throw new Error(`图片格式不受支持或文件无法读取：${input.path}`);
 
     if (input.scale != null || input.width != null) {
       const { width, height } = image.getSize();
@@ -151,7 +151,7 @@ async function loadImage(input: ImageRequest) {
       const targetHeight = Math.round(height * targetWidth / width);
       if (!Number.isFinite(targetWidth) || !(0 < targetWidth && targetWidth <= 3000
           && 0 < targetHeight && targetHeight <= 3000)) {
-        throw new Error('Resized dimensions must be between 1 and 3000 pixels.');
+        throw new Error('缩放后的尺寸须在 1 至 3000 像素之间。');
       }
       image = image.resize({ width: targetWidth });
       transformed = true;

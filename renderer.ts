@@ -51,7 +51,7 @@ scaleInput.onkeydown = event => {
 async function load(file?: File) {
   if (!file) return;
   const path = window.electron.webUtils.getPathForFile(file);
-  if (!path) return showToast('This item has no local file path.', 'error');
+  if (!path) return showToast('此项目没有本地文件路径。', 'error');
 
   try {
     const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', { path }));
@@ -59,7 +59,7 @@ async function load(file?: File) {
     originalSize = result;
     showPreview(result, path);
     scaleInput.value = '';
-    showToast('Copied to clipboard');
+    showToast('已复制到剪贴板');
   } catch (error) {
     reportError(error);
   }
@@ -71,14 +71,14 @@ async function resize() {
   const width = value < 20 ? Math.round(originalSize.width * value) : Math.round(value);
   const height = Math.round(originalSize.height * width / originalSize.width);
   if (!Number.isFinite(value) || !(0 < width && width <= 3000 && 0 < height && height <= 3000)) {
-    return showToast('Resized dimensions must be between 1 and 3000 pixels.', 'error');
+    return showToast('缩放后的尺寸须在 1 至 3000 像素之间。', 'error');
   }
 
   try {
     const request = value < 20 ? { path: currentPath, scale: value } : { path: currentPath, width };
     const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', request));
     showPreview(result, currentPath);
-    showToast('Copied to clipboard');
+    showToast('已复制到剪贴板');
   } catch (error) {
     reportError(error);
   }
@@ -113,7 +113,7 @@ function reportError(error: unknown) {
 function assertProcessedImage(value: unknown): ProcessedImage {
   if (!value || typeof value != 'object' || !('width' in value) || !('height' in value)
       || typeof value.width != 'number' || typeof value.height != 'number') {
-    throw new Error('The image response was invalid.');
+    throw new Error('图片处理结果无效。');
   }
   const preview = 'preview' in value && value.preview instanceof Uint8Array ? value.preview : undefined;
   return { width: value.width, height: value.height, preview };
@@ -121,6 +121,6 @@ function assertProcessedImage(value: unknown): ProcessedImage {
 
 function getElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
-  if (!element) throw new Error(`Missing #${id}`);
+  if (!element) throw new Error(`缺少 #${id}`);
   return element as T;
 }
