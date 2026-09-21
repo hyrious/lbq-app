@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 
 interface HelperBundle {
   bundle: string;
@@ -10,8 +10,9 @@ interface HelperBundle {
 }
 
 const repoRoot = join(import.meta.dirname, '..');
-const destination = join(import.meta.dirname, 'ImagePortal.app');
+const destination = join(homedir(), 'Applications', 'ImagePortal.app');
 const appResources = join(destination, 'Contents', 'Resources', 'app');
+const stampPath = join(appResources, '.electron-version');
 const bundleIdentifier = 'com.hyrious.imageportal';
 const sourceFiles = ['main.ts', 'preload.ts', 'index.html', 'renderer.ts', 'style.css', 'package.json', 'tsconfig.json'];
 const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign'];
@@ -28,44 +29,74 @@ for (const tool of requiredTools) requireTool(tool);
 const electronBinary = execFileSync(process.execPath, [join(import.meta.dirname, 'electron.ts'), '--install'], { encoding: 'utf8' }).trim().split(/\r?\n/).at(-1);
 if (!electronBinary || !existsSync(electronBinary)) throw new Error('Electron installation did not produce a binary.');
 const electronApp = join(electronBinary, '..', '..', '..');
+const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(electronApp, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
+const stamp = `electron ${electronVersion}`;
 
-rmSync(destination, { recursive: true, force: true });
-exec('ditto', [electronApp, destination]);
-exec('mv', [join(destination, 'Contents', 'MacOS', 'Electron'), join(destination, 'Contents', 'MacOS', 'ImagePortal')]);
-
-const mainPlist = join(destination, 'Contents', 'Info.plist');
-replacePlist(mainPlist, 'CFBundleExecutable', 'ImagePortal');
-replacePlist(mainPlist, 'CFBundleName', 'Image Portal');
-replacePlist(mainPlist, 'CFBundleDisplayName', 'Image Portal');
-replacePlist(mainPlist, 'CFBundleIdentifier', bundleIdentifier);
-replacePlist(mainPlist, 'NSHumanReadableCopyright', 'Copyright © 2026 hyrious');
-
-for (const helper of helperBundles) {
-  const plist = join(destination, 'Contents', 'Frameworks', helper.bundle, 'Contents', 'Info.plist');
-  replacePlist(plist, 'CFBundleIdentifier', `${bundleIdentifier}.${helper.suffix}`);
-  replacePlist(plist, 'CFBundleName', helper.name);
+// Rebuild the bundle only when it is missing or was built from another Electron
+// version. Either way the sources are refreshed and the app is re-signed; the
+// signature seals the resources, so it must happen after the copy.
+const rebuilt = needsRebuild();
+if (rebuilt) {
+  buildBundle();
+} else {
+  console.log('Binary is current, syncing sources.');
 }
-
-const temporaryDirectory = mkdtempSync(join(tmpdir(), 'image-portal-icon-'));
-try {
-  const iconset = join(temporaryDirectory, 'icon.iconset');
-  mkdirSync(iconset);
-  for (const size of [16, 32, 128, 256, 512]) {
-    makeIcon(size, join(iconset, `icon_${size}x${size}.png`));
-    makeIcon(size * 2, join(iconset, `icon_${size}x${size}@2x.png`));
-  }
-  exec('iconutil', ['-c', 'icns', iconset, '-o', join(destination, 'Contents', 'Resources', 'icon.icns')]);
-} finally {
-  rmSync(temporaryDirectory, { recursive: true, force: true });
-}
-replacePlist(mainPlist, 'CFBundleIconFile', 'icon');
 
 mkdirSync(appResources, { recursive: true });
 for (const file of sourceFiles) cpSync(join(repoRoot, file), join(appResources, file));
+writeFileSync(stampPath, stamp);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
-console.log(destination);
-console.log(`Install with: cp -R ${JSON.stringify(destination)} /Applications/`);
+refreshLaunchServices();
+exec('open', [destination]);
+
+function needsRebuild(): boolean {
+  if (!existsSync(join(destination, 'Contents', 'MacOS', 'ImagePortal'))) return true;
+  try {
+    return readFileSync(stampPath, 'utf8').trim() != stamp;
+  } catch {
+    return true;
+  }
+}
+
+function buildBundle() {
+  rmSync(destination, { recursive: true, force: true });
+  mkdirSync(dirname(destination), { recursive: true });
+  exec('ditto', [electronApp, destination]);
+  exec('mv', [join(destination, 'Contents', 'MacOS', 'Electron'), join(destination, 'Contents', 'MacOS', 'ImagePortal')]);
+
+  const mainPlist = join(destination, 'Contents', 'Info.plist');
+  replacePlist(mainPlist, 'CFBundleExecutable', 'ImagePortal');
+  replacePlist(mainPlist, 'CFBundleName', 'Image Portal');
+  replacePlist(mainPlist, 'CFBundleDisplayName', 'Image Portal');
+  replacePlist(mainPlist, 'CFBundleIdentifier', bundleIdentifier);
+  replacePlist(mainPlist, 'NSHumanReadableCopyright', 'Copyright © 2026 hyrious');
+
+  for (const helper of helperBundles) {
+    const plist = join(destination, 'Contents', 'Frameworks', helper.bundle, 'Contents', 'Info.plist');
+    replacePlist(plist, 'CFBundleIdentifier', `${bundleIdentifier}.${helper.suffix}`);
+    replacePlist(plist, 'CFBundleName', helper.name);
+  }
+
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), 'image-portal-icon-'));
+  try {
+    const iconset = join(temporaryDirectory, 'icon.iconset');
+    mkdirSync(iconset);
+    for (const size of [16, 32, 128, 256, 512]) {
+      makeIcon(size, join(iconset, `icon_${size}x${size}.png`));
+      makeIcon(size * 2, join(iconset, `icon_${size}x${size}@2x.png`));
+    }
+    exec('iconutil', ['-c', 'icns', iconset, '-o', join(destination, 'Contents', 'Resources', 'icon.icns')]);
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+  replacePlist(mainPlist, 'CFBundleIconFile', 'icon');
+}
+
+function refreshLaunchServices() {
+  const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister';
+  exec(lsregister, ['-f', destination]);
+}
 
 function requireTool(tool: string) {
   try {
@@ -87,4 +118,3 @@ function makeIcon(size: number, destinationPath: string) {
   exec('sips', ['-z', String(size), String(size), join(repoRoot, 'icon.png'), '--out', destinationPath]);
   if (!existsSync(destinationPath)) throw new Error(`Failed to create ${basename(destinationPath)} in ${dirname(destinationPath)}`);
 }
-

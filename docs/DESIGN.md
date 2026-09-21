@@ -12,8 +12,8 @@ stock Electron bundle.
 ## Scope
 
 - Development: run directly with `electron .` (no build step).
-- Distribution: produce `build/ImagePortal.app`, ad-hoc signed, self-contained,
-  movable to `/Applications`.
+- Distribution: produce `~/Applications/ImagePortal.app`, ad-hoc signed,
+  self-contained, relocatable.
 - Lightweight update: re-sync only the TypeScript/HTML/CSS sources into the
   already-built `.app`; never re-copy or re-sign the binary.
 
@@ -43,10 +43,11 @@ All verified on Electron `40.1.0` (bundles Node `24.11.1`) on macOS arm64.
    names** (`Electron Helper`, `Electron Helper (Renderer)`, `Electron Helper
    (GPU)`, `Electron Helper (Plugin)`), or child-process detection breaks.
 4. **Stock Electron is ad-hoc / linker-signed**, `Sealed Resources=none`, no
-   team identifier. After renaming the binary and editing plists it must be
-   re-signed with `codesign --force --deep --sign -`. No certificate required.
-   Because resources are not sealed, editing files under
-   `Contents/Resources/app/` afterwards does **not** require re-signing.
+   team identifier. After renaming the binary and editing plists it is re-signed
+   with `codesign --force --deep --sign -`. No certificate required. Note that
+   our `--deep` signature **does seal resources** (unlike the stock bundle), so
+   the signature must be produced *after* the final source copy; any later
+   change to `Contents/Resources/app/` requires re-signing.
 5. **Native clipboard + image pipeline.** Main process has
    `clipboard.writeImage(nativeImage)`, `nativeImage.createFromPath(path)`,
    `nativeImage.resize(...)`, and `webUtils.getPathForFile(file)` in preload.
@@ -55,8 +56,10 @@ All verified on Electron `40.1.0` (bundles Node `24.11.1`) on macOS arm64.
 
 ## Trust boundary / design decisions
 
-- D1: Development uses `electron .`; the packaged app is kept current via
-  `app:sync`. (Both share the same `app-file://` loading logic.)
+- D1: Development uses `electron .`; `npm run app` builds to
+  `~/Applications/ImagePortal.app`, refreshes the sources, re-signs and launches
+  it. The binary bundle is only re-copied when missing or built from another
+  Electron version. (Both paths share the same `app-file://` loading logic.)
 - D2: `preload.ts` is stripped at runtime into
   `app.getPath('userData')/preload.js`. No preload build step exists on disk.
 - D3: All image decoding / clipboard writing happens in the **main process**
@@ -80,7 +83,8 @@ All verified on Electron `40.1.0` (bundles Node `24.11.1`) on macOS arm64.
 
 - Pre-stripping renderer `.ts` to `.js` for packaging — unnecessary, because
   the custom scheme is not a system-level concern (fact 2).
-- asar packaging — would seal resources and break the `app:sync` update flow.
+- asar packaging — would seal resources and complicate the source-sync update
+  flow.
 - `libheif-js` / `esm.sh` for HEIC — superseded by native `sips` (fact 6).
 - CDN front-end libraries (React, shadcn, sonner, …) — a toast + toolbar is a few
   dozen lines of CSS; a CDN dependency would break the offline, zero-dependency

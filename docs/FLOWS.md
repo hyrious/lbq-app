@@ -19,30 +19,30 @@ protocol and stripped on the fly. Editing `renderer.ts` / `index.html` /
 `style.css` and reloading the window picks up changes with no build step.
 Editing `main.ts` requires restarting `electron .`.
 
-## 2. Packaged build
+## 2. Build and run the app
 
 ```
-npm run app        # build/app.ts
-npm run app:open   # open build/ImagePortal.app
-cp -R build/ImagePortal.app /Applications/
+npm run app    # build/sync ~/Applications/ImagePortal.app and launch it
 ```
 
-`build/app.ts` assembles a renamed, re-signed copy of the stock `Electron.app`
-(see FILES.md for the exact steps). Result: `app.isPackaged === true`, bundle
-id `com.hyrious.imageportal`, no `Electron`-named top-level bundle in
-LaunchServices, self-contained and relocatable.
+One command builds, updates, signs and opens the app. The first run (or a run
+after the pinned Electron version changes) assembles a renamed, re-signed copy
+of the stock `Electron.app` into `~/Applications/`; later runs only refresh the
+sources and re-sign (~0.5 s). Result: `app.isPackaged === true`, bundle id
+`com.hyrious.imageportal`, no `Electron`-named top-level bundle in
+LaunchServices, self-contained and relocatable, and discoverable by Raycast and
+Spotlight via `lsregister`.
 
 ## 3. Lightweight update
 
 ```
 # edit main.ts / renderer.ts / index.html / style.css / preload.ts
-npm run app:sync   # copies sources into the built .app
-npm run app:open
+npm run app    # syncs sources, re-signs, relaunches
 ```
 
-`app:sync` overwrites files under `Contents/Resources/app/` only. Because the
-ad-hoc signature seals no resources, the app launches without re-signing. The
-binary is never re-downloaded, re-copied or re-signed.
+When the stamp matches, the ~200 MB Electron bundle is not re-copied; only
+`Contents/Resources/app/` is refreshed. Because the `--deep` signature seals
+resources, the app is re-signed afterwards, so the signature stays valid.
 
 ## 4. Runtime: image → clipboard
 

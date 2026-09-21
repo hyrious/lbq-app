@@ -6,7 +6,7 @@ Repository layout:
 image-portal/
 ├── package.json            # type:module, main:main.ts, scripts, pinned versions
 ├── tsconfig.json           # erasableSyntaxOnly, noEmit, nodenext
-├── .gitignore              # .electron, node_modules, build/ImagePortal.app
+├── .gitignore              # .electron, node_modules, .codex-run
 ├── icon.png                # app icon source (dev dock icon + packaged icns)
 ├── main.ts                 # main process entry
 ├── preload.ts              # ipc bridge (self-contained, no import)
@@ -17,8 +17,7 @@ image-portal/
 └── build/
     ├── electron.ts         # download + launch the Electron binary
     ├── install.ts          # fetch electron / @types/node into node_modules
-    ├── app.ts              # build build/ImagePortal.app
-    └── dev-sync.ts         # copy sources into the built .app (no re-sign)
+    └── app.ts              # build/sync ~/Applications/ImagePortal.app and open it
 ```
 
 ## `main.ts`
@@ -119,41 +118,35 @@ registry, not via npm install). Used by `npm install` (the `install` script).
 
 ## `build/app.ts`
 
-Produces `build/ImagePortal.app`. Steps:
+Builds or updates `~/Applications/ImagePortal.app`, then launches it. One
+command does the whole cycle:
 
 1. Ensure `.electron/v40.1.0/.../Electron.app` exists; if not run
    `electron.ts --install`.
-2. Remove any previous `build/ImagePortal.app`.
-3. `ditto` the stock `Electron.app` to `build/ImagePortal.app` (preserves
-   signature and xattrs).
-4. `mv Contents/MacOS/Electron Contents/MacOS/ImagePortal`.
-5. `plutil -replace` on the **main** `Contents/Info.plist`:
-   `CFBundleExecutable` = `ImagePortal`,
-   `CFBundleName` = `Image Portal`,
-   `CFBundleDisplayName` = `Image Portal`,
+2. Decide whether to rebuild, by comparing a stamp
+   (`Contents/Resources/app/.electron-version`) against the Electron version of
+   the cached binary. Rebuild when the app is missing or the stamp differs.
+3. Rebuild only: remove the old bundle, `ditto` the stock `Electron.app` into
+   place, `mv Contents/MacOS/Electron Contents/MacOS/ImagePortal`, then
+   `plutil -replace` the main plist
+   (`CFBundleExecutable` = `ImagePortal`,
+   `CFBundleName`/`CFBundleDisplayName` = `Image Portal`,
    `CFBundleIdentifier` = `com.hyrious.imageportal`,
-   `NSHumanReadableCopyright` = project copyright.
-6. For each of the four helper bundles under `Contents/Frameworks/`:
-   `plutil -replace CFBundleIdentifier` to add a stable suffix derived from the
-   main id (e.g. `com.hyrious.imageportal.helper`,
-   `...helper.Renderer`, `...helper.GPU`, `...helper.Plugin`), and set
-   `CFBundleName` to a matching display name. **Do not rename the helper
-   executables** (see DESIGN fact 3).
-7. Icon: build `Contents/Resources/icon.icns` from `icon.png` via `sips`
-   (sizes 16→1024) + `iconutil -c icns`, then set `CFBundleIconFile` = `icon`.
-8. Copy app sources into `Contents/Resources/app/`: `main.ts`, `preload.ts`,
-   `index.html`, `renderer.ts`, `style.css`, `package.json`, `tsconfig.json`.
-   Never copy `build/`, `docs/`, `.electron/`, `.git`, `node_modules`.
-9. `codesign --force --deep --sign - build/ImagePortal.app`.
-10. Print the path and the `cp -R` hint for `/Applications`.
+   `NSHumanReadableCopyright`) and, for each of the four helper bundles under
+   `Contents/Frameworks/`, the suffixed `CFBundleIdentifier` and `CFBundleName`.
+   **Do not rename the helper executables** (see DESIGN fact 3). Build
+   `Contents/Resources/icon.icns` from `icon.png` via `sips` (16→1024) +
+   `iconutil -c icns`, then set `CFBundleIconFile` = `icon`.
+4. Always copy the app sources into `Contents/Resources/app/`: `main.ts`,
+   `preload.ts`, `index.html`, `renderer.ts`, `style.css`, `package.json`,
+   `tsconfig.json`. Never copy `build/`, `docs/`, `.electron/`, `.git`,
+   `node_modules`. Write the stamp file.
+5. `codesign --force --deep --sign -` the bundle **last**, so the seal covers
+   the copied sources (the `--deep` signature seals resources).
+6. `lsregister -f` the bundle so Finder/Raycast see it, then `open` it.
 
-## `build/dev-sync.ts`
-
-- Copy only the app sources (same set as `build/app.ts` step 8) into the
-  existing `build/ImagePortal.app/Contents/Resources/app/`, overwriting.
-- Do **not** touch the binary, plists or signature (DESIGN fact 4: resources
-  are not sealed, so no re-sign is needed).
-- Error out with a hint to run `npm run app` first if the `.app` is missing.
+When the stamp matches, steps 3 is skipped, so the ~200 MB Electron bundle is
+not re-copied; only the sources change and the app is re-signed (~0.5 s).
 
 ## `package.json`
 
@@ -167,7 +160,6 @@ Produces `build/ImagePortal.app`. Steps:
     "install":  "node build/install.ts",
     "dev":      "node build/electron.ts .",
     "app":      "node build/app.ts",
-    "app:sync": "node build/dev-sync.ts",
     "app:open": "open build/ImagePortal.app"
   }
 }

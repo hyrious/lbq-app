@@ -26,23 +26,18 @@ instead of a modal alert.
 The window uses macOS vibrancy (`under-window`) with an inset native title bar,
 so the background is a translucent blur rather than a flat fill.
 
-## Package the App
+## Build and Run the App
 
 ```sh
 npm run app
-npm run app:open
 ```
 
-Packaging creates `build/ImagePortal.app` from the stock Electron bundle, generates the app icon, renames only the main executable, and applies an ad-hoc signature. Copy the resulting bundle to `/Applications` if desired.
-
-## Sync Source Changes
-
-```sh
-npm run app:sync
-npm run app:open
-```
-
-Sync updates only the TypeScript, HTML, CSS, and project metadata under the packaged app's `Contents/Resources/app/` directory. It leaves the executable, property lists, and signature unchanged.
+One command builds or updates `~/Applications/ImagePortal.app` and launches it.
+The first run assembles the bundle from the stock Electron release, generates the
+app icon, renames only the main executable, and applies an ad-hoc signature.
+Later runs detect that the binary is current and only refresh the sources, then
+re-sign and relaunch, so iteration takes well under a second. Because the app
+lives in `~/Applications`, Raycast and Spotlight find it.
 
 ## App Identity
 
