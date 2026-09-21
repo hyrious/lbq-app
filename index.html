@@ -8,25 +8,21 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1 class="title">Image Portal</h1>
-  <p class="description">
-    Drop or paste an image to copy clean PNG image data to the clipboard.<br>
-    Then paste it into the destination app with <kbd>Command+V</kbd>.
-  </p>
   <div id="drop-area" class="drop-area">
-    <p>Drag &amp; drop an image here.</p>
+    <p class="placeholder">Drop or paste an image</p>
   </div>
   <div id="preview-panel" class="preview hidden">
     <img id="preview" alt="Image preview">
-    <div id="hint" class="hint">
+    <div class="toolbar">
       <span id="dimension" class="dimension"></span>
-      <input id="scale" class="resize" inputmode="decimal" placeholder="1.0" aria-label="Scale">
-      <button id="resize" class="btn-resize" type="button">RESIZE</button>
+      <input id="scale" class="scale" inputmode="decimal" placeholder="1.0" aria-label="Scale">
+      <button id="resize" class="action" type="button">Resize</button>
+      <button id="close" class="action icon" type="button" aria-label="Close preview">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6Z"/></svg>
+      </button>
     </div>
-    <button id="close" class="btn-close" type="button" title="Close" aria-label="Close preview">
-      <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6Z"/></svg>
-    </button>
   </div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <script type="module" src="renderer.ts"></script>
 </body>
 </html>

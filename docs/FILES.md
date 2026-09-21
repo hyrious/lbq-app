@@ -44,16 +44,17 @@ Owns: window lifecycle, protocol, native image pipeline, IPC.
 
 IPC handlers (all `ipcMain.handle`):
 
-- `copy-image({ path, scale? })`:
+- `process-image({ path, scale? })`:
   1. If `path` ends with `.heic`/`.heif` (case-insensitive), convert to a temp
-     PNG with `sips -s format png <in> --out <tmp>`; else use the path as-is.
+     PNG with `sips -s format png <in> --out <tmp>`.
   2. `nativeImage.createFromPath(...)`; if `scale` is a finite positive number,
      `nativeImage.resize({ width: Math.round(w*scale) })`.
   3. `clipboard.writeImage(image)`.
-  4. Return `{ width, height }` of the written image.
+  4. Return `{ width, height, preview? }`, where `preview` is PNG bytes
+     (`image.toPNG()`) **only when a transform happened** (HEIC conversion or
+     scaling). Untransformed images are previewed by the renderer directly
+     from the original path, so no re-encode is needed.
   Reject with a clear error message on unsupported input.
-- `read-image(path)`: return a data URL (or bytes) so the renderer can preview
-  exactly what will be copied (handles HEIC preview too).
 
 ## `preload.ts`
 
@@ -69,24 +70,31 @@ No `on`/`send` surface unless needed.
 
 ## `renderer.ts`
 
-- Drag/drop handlers on the drop zone and preview; `dragover` preventDefault.
+- Drag/drop handlers on the full-window drop area and the preview panel;
+  `dragover` preventDefault.
 - On drop/paste, take the first file, resolve its path via
   `window.electron.webUtils.getPathForFile`.
-- Call `read-image` for the preview, `copy-image` to place it on the clipboard.
-- Controls: scale input + "RESIZE" button → call `copy-image` with the parsed
-  scale, then refresh preview. Same guards as the reference (dimensions must be
-  > 0 and ≤ 3000).
-- Window title feedback ("Copied to clipboard", auto-restore) mirroring the
-  reference `setPortalTitle`.
+- Call `process-image` once; it both writes the clipboard and returns the size
+  plus optional preview bytes.
+- Preview: when `preview` bytes are present (HEIC or scaled), build a Blob
+  object URL (`URL.createObjectURL`); otherwise point `<img>` at the original
+  file through `app-file://app<percent-encoded path>`. Revoke the previous
+  object URL before replacing it.
+- Controls: scale input + "Resize" button → call `process-image` with the parsed
+  scale, then refresh preview. Dimensions must be > 0 and ≤ 3000.
+- Feedback: a small toast region replaces the window-title flash and the native
+  `alert`; errors render as a red toast.
 - No `navigator.clipboard`, no libheif, no canvas re-encoding.
 
 ## `index.html` / `style.css`
 
-- Structure and styling migrated from `hyrious/tool/image-portal.html`.
+- Full-window drop surface (no title or description); the dashed outline and
+  centered hint are the only chrome.
 - Loads `renderer.ts` via `<script type="module" src="renderer.ts">`.
-- `<meta charset>`, `color-scheme`.
-- Any inline `scripts`/`styles` in the reference may stay, but the app-level
-  logic moves to `renderer.ts` + `style.css`.
+- A toast region and a floating glass toolbar replace the old bottom bar.
+- macOS look: the window uses `vibrancy: 'under-window'` and
+  `titleBarStyle: 'hiddenInset'`, so `body` is transparent and the dashed
+  outline is inset below a draggable strip that sits under the traffic lights.
 
 ## `build/electron.ts`
 

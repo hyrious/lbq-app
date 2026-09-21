@@ -8,111 +8,165 @@ html, body {
 
 body {
   margin: 0;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
   font-family: system-ui, sans-serif;
-  background: Canvas;
+  background: transparent;
   color: CanvasText;
-}
-
-.title {
-  margin: 0 5%;
-  padding: 36px 0 18px;
-  font-family: ui-monospace, monospace;
-}
-
-.description {
-  margin: 0 5% 16px;
-  line-height: 1.5;
-}
-
-kbd {
-  padding: 0 0.5ch;
-  border: 1px solid currentColor;
+  /* The whole window is a drop target; the first 38px doubles as a drag strip. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .drop-area {
-  flex: 1;
-  position: relative;
-  margin: 0 5% 5%;
-  min-height: 240px;
-  border: 1px dashed currentColor;
-  border-radius: 6px;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 16px 16px;
 }
 
-.drop-area.active {
-  background: color-mix(in srgb, Highlight 12%, transparent);
-}
-
-.drop-area > p, .preview > img {
+/* A faint fill keeps the outline and hint legible over any vibrancy backdrop. */
+.drop-area::before {
+  content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 44px 16px 16px;
+  border: 1.5px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, CanvasText 4%, transparent);
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.drop-area > p {
+.drop-area.active::before {
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.placeholder {
   margin: 0;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+/* Drag strip under the traffic lights. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 38px;
+  -webkit-app-region: drag;
+  z-index: 1;
 }
 
 .preview {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, black 78%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .preview > img {
-  max-width: 80%;
-  max-height: 80%;
+  max-width: 82%;
+  max-height: 74%;
+  border-radius: 6px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
 }
 
-.hint {
+.toolbar {
   position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  padding: 8px 16px;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.72);
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, black 55%, transparent);
+  backdrop-filter: blur(20px);
+  color: white;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
 .dimension {
-  padding-right: 16px;
   font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  opacity: 0.85;
+  padding-right: 4px;
 }
 
-.resize {
-  width: 72px;
+.scale {
+  width: 52px;
+  padding: 5px 8px;
   border: 0;
-  border-bottom: 1px solid white;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
   outline: 0;
-  background: transparent;
-  color: white;
 }
 
-.btn-close, .btn-resize {
+.scale:focus {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.action {
   border: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
   background: transparent;
   color: white;
+  font: inherit;
+  font-size: 13px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.btn-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 12px;
-  border-radius: 50%;
+.action:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.btn-resize {
-  margin-left: 8px;
-  padding: 8px 12px;
+.action.icon {
+  display: flex;
+  padding: 6px;
 }
 
-.btn-close:hover, .btn-resize:hover {
-  background: rgba(127, 127, 127, 0.5);
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 3;
+}
+
+.toast {
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, black 62%, transparent);
+  backdrop-filter: blur(20px);
+  color: white;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  opacity: 1;
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.toast.error {
+  background: color-mix(in srgb, #d13438 78%, transparent);
+}
+
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(4px);
 }
 
 .hidden {

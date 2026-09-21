@@ -53,21 +53,21 @@ drop / paste a file
   ↓
 webUtils.getPathForFile(file)  ─→ (path string)
   ↓
-invoke('read-image', path)     ──→ decode (sips if HEIC)
-  ←── data URL ────────────────────
-renderer shows preview
-  ↓
-invoke('copy-image', {path, scale})
+invoke('process-image', {path, scale?})
                                    sips HEIC→PNG if needed
                                    nativeImage.createFromPath
                                    nativeImage.resize if scale
                                    clipboard.writeImage
-  ←── {width, height} ────────────
-renderer updates hint / title
+  ←── {width, height, preview?} ───
+preview = Blob URL (if transformed)
+          or app-file://<original path> (otherwise)
+renderer updates toolbar / title
 ```
 
 HEIC handling lives entirely in the main process via macOS `sips`; the renderer
-never sees libheif, canvas re-encoding, or `navigator.clipboard`.
+never sees libheif, canvas re-encoding, or `navigator.clipboard`. Preview bytes
+are only sent when the image was transformed, so the common case does no extra
+encode and no base64 inflation.
 
 ## 5. Identity isolation
 

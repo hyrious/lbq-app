@@ -9,6 +9,10 @@ interface ImageSize {
   height: number;
 }
 
+interface ProcessedImage extends ImageSize {
+  preview?: Uint8Array;
+}
+
 declare global {
   interface Window {
     electron: ElectronBridge;
@@ -22,11 +26,10 @@ const dimension = getElement<HTMLSpanElement>('dimension');
 const scaleInput = getElement<HTMLInputElement>('scale');
 const resizeButton = getElement<HTMLButtonElement>('resize');
 const closeButton = getElement<HTMLButtonElement>('close');
-const defaultTitle = document.title;
+const toastRegion = getElement<HTMLDivElement>('toasts');
 let currentPath = '';
 let originalSize: ImageSize | undefined;
-let titleTimer = 0;
-let titleVersion = 0;
+let previewURL = '';
 
 dropArea.ondragover = previewPanel.ondragover = event => {
   event.preventDefault();
@@ -48,22 +51,17 @@ scaleInput.onkeydown = event => {
 async function load(file?: File) {
   if (!file) return;
   const path = window.electron.webUtils.getPathForFile(file);
-  if (!path) return showError(new Error('The pasted item has no local file path.'));
+  if (!path) return showToast('This item has no local file path.', 'error');
 
   try {
+    const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', { path }));
     currentPath = path;
-    const [dataURL, size] = await Promise.all([
-      window.electron.ipcRenderer.invoke('read-image', path),
-      window.electron.ipcRenderer.invoke('copy-image', { path })
-    ]);
-    preview.src = assertString(dataURL);
-    originalSize = assertImageSize(size);
-    updateHint(originalSize);
-    previewPanel.classList.remove('hidden');
+    originalSize = result;
+    showPreview(result, path);
     scaleInput.value = '';
-    setPortalTitle('Copied to clipboard', 1500);
+    showToast('Copied to clipboard');
   } catch (error) {
-    showError(error);
+    reportError(error);
   }
 }
 
@@ -73,57 +71,53 @@ async function resize() {
   const width = Math.round(originalSize.width * scale);
   const height = Math.round(originalSize.height * scale);
   if (!Number.isFinite(scale) || !(0 < width && width <= 3000 && 0 < height && height <= 3000)) {
-    window.alert('Scaled dimensions must be between 1 and 3000 pixels.');
-    return;
+    return showToast('Scaled dimensions must be between 1 and 3000 pixels.', 'error');
   }
 
   try {
     const request = { path: currentPath, scale };
-    const [dataURL, size] = await Promise.all([
-      window.electron.ipcRenderer.invoke('read-image', request),
-      window.electron.ipcRenderer.invoke('copy-image', request)
-    ]);
-    preview.src = assertString(dataURL);
-    updateHint(assertImageSize(size));
-    setPortalTitle('Copied to clipboard', 1500);
+    const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', request));
+    originalSize = result;
+    showPreview(result, currentPath);
+    showToast('Copied to clipboard');
   } catch (error) {
-    showError(error);
+    reportError(error);
   }
 }
 
-function updateHint(size: ImageSize) {
-  dimension.textContent = `${size.width} × ${size.height}`;
+function showPreview(result: ProcessedImage, path: string) {
+  if (previewURL) URL.revokeObjectURL(previewURL);
+  previewURL = result.preview
+    ? URL.createObjectURL(new Blob([result.preview as BlobPart], { type: 'image/png' }))
+    : `app-file://app${path.split('/').map(encodeURIComponent).join('/')}`;
+  preview.src = previewURL;
+  dimension.textContent = `${result.width} × ${result.height}`;
+  previewPanel.classList.remove('hidden');
 }
 
-function setPortalTitle(title: string, restoreAfter = 0) {
-  const version = ++titleVersion;
-  clearTimeout(titleTimer);
-  document.title = title;
-  if (restoreAfter) {
-    titleTimer = window.setTimeout(() => {
-      if (version == titleVersion) document.title = defaultTitle;
-    }, restoreAfter);
-  }
+function showToast(message: string, tone: 'info' | 'error' = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${tone}`;
+  toast.textContent = message;
+  toastRegion.append(toast);
+  setTimeout(() => {
+    toast.classList.add('leaving');
+    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+  }, 1600);
 }
 
-function showError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+function reportError(error: unknown) {
   console.error(error);
-  setPortalTitle('Image Portal', 1500);
-  window.alert(message);
+  showToast(error instanceof Error ? error.message : String(error), 'error');
 }
 
-function assertString(value: unknown): string {
-  if (typeof value != 'string') throw new Error('The image preview response was invalid.');
-  return value;
-}
-
-function assertImageSize(value: unknown): ImageSize {
+function assertProcessedImage(value: unknown): ProcessedImage {
   if (!value || typeof value != 'object' || !('width' in value) || !('height' in value)
       || typeof value.width != 'number' || typeof value.height != 'number') {
-    throw new Error('The image size response was invalid.');
+    throw new Error('The image response was invalid.');
   }
-  return { width: value.width, height: value.height };
+  const preview = 'preview' in value && value.preview instanceof Uint8Array ? value.preview : undefined;
+  return { width: value.width, height: value.height, preview };
 }
 
 function getElement<T extends HTMLElement>(id: string): T {

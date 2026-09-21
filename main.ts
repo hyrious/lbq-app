@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { app, BrowserWindow, clipboard, ipcMain, nativeImage, nativeTheme, net, protocol, shell } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, nativeImage, net, protocol, shell } from 'electron';
 
 interface ImageRequest {
   path?: string;
@@ -65,14 +65,13 @@ async function onReady() {
   const preloadPath = join(app.getPath('userData'), 'preload.js');
   await writeFile(preloadPath, preloadSource);
 
-  ipcMain.handle('copy-image', async (_event, input: ImageRequest) => {
-    const image = await loadImage(input);
+  ipcMain.handle('process-image', async (_event, input: ImageRequest) => {
+    const { image, transformed } = await loadImage(input);
     clipboard.writeImage(image);
-    return image.getSize();
-  });
-  ipcMain.handle('read-image', async (_event, input: string | ImageRequest) => {
-    const image = await loadImage(typeof input == 'string' ? { path: input } : input);
-    return image.toDataURL();
+    return {
+      ...image.getSize(),
+      preview: transformed ? image.toPNG() : undefined
+    };
   });
 
   if (!app.isPackaged) app.dock?.setIcon(join(import.meta.dirname, 'icon.png'));
@@ -83,14 +82,19 @@ async function onReady() {
   try {
     windowState = JSON.parse(await readFile(windowStatePath, 'utf8'));
   } catch {
-    windowState = { x: 200, y: 200, width: 720, height: 620 };
+    windowState = { x: 200, y: 200, width: 320, height: 320 };
   }
 
   mainWindow = new BrowserWindow({
     autoHideMenuBar: true,
     ...windowState,
+    minWidth: 320,
+    minHeight: 320,
     icon: app.isPackaged ? undefined : join(import.meta.dirname, 'icon.png'),
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    backgroundColor: '#00000000',
+    titleBarStyle: 'hiddenInset',
+    vibrancy: 'under-window',
+    visualEffectState: 'active',
     webPreferences: { preload: preloadPath }
   });
 
@@ -121,6 +125,7 @@ async function loadImage(input: ImageRequest) {
   }
 
   let imagePath = input.path;
+  let transformed = false;
   let temporaryDirectory: string | undefined;
   try {
     if (/\.hei[cf]$/i.test(imagePath)) {
@@ -132,6 +137,7 @@ async function loadImage(input: ImageRequest) {
         throw new Error(`Unable to convert HEIC image with sips: ${String(error)}`);
       }
       imagePath = convertedPath;
+      transformed = true;
     }
 
     let image = nativeImage.createFromPath(imagePath);
@@ -146,8 +152,9 @@ async function loadImage(input: ImageRequest) {
         throw new Error('Scaled dimensions must be between 1 and 3000 pixels.');
       }
       image = image.resize({ width: scaledWidth });
+      transformed = true;
     }
-    return image;
+    return { image, transformed };
   } finally {
     if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });
   }
