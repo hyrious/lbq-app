@@ -88,8 +88,9 @@ No `on`/`send` surface unless needed.
 
 ## `index.html` / `style.css`
 
-- Full-window drop surface (no title or description); the dashed outline and
-  centered hint are the only chrome.
+- Full-window drop surface (no description); a centered "Image Portal" title
+  sits in the top drag gutter beside the traffic lights, and the dashed outline
+  with its centered hint is the rest of the chrome.
 - Loads `renderer.ts` via `<script type="module" src="renderer.ts">`.
 - A toast region and a floating glass toolbar replace the old bottom bar.
 - The `.drop-area` gutter (16px sides/bottom, 44px top) drags the window;

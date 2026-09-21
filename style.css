@@ -16,6 +16,27 @@ body {
   user-select: none;
 }
 
+/* Native-looking title, centered in the drag gutter beside the traffic lights. */
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 80px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 2;
+  -webkit-app-region: drag;
+}
+
 /* The gutter around the dashed surface drags the window; the surface itself is
    a drop target. */
 .drop-area {
