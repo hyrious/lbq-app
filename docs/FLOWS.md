@@ -10,9 +10,10 @@ main.ts
   → create Tray
   → scan tools/*/plugin.ts
   → rebuild Tray menu from discovered metadata
+  → reopen tool windows that were visible when LBQ exited
 ```
 
-No tool is activated during discovery.
+Tools are activated after discovery only when restoring a window from the previous session.
 
 ## Open and Close
 
@@ -33,6 +34,8 @@ Window closed
 
 With `window.hideOnClose`, the close action hides the existing window instead. The window, WebContents, and plugin activation remain alive until the runtime exits.
 The Tray marks tools with a live window as running, including windows hidden by this option.
+
+LBQ records open windows as they are shown or hidden. On the next launch, it restores windows that remained open when LBQ exited. Hidden and closed windows are not restored.
 
 Closing the last window does not terminate LBQ. Choosing Quit from the Tray disposes the runtime and exits.
 

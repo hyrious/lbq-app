@@ -30,11 +30,6 @@ export class DisposableStore implements IDisposable {
     return value;
   }
 
-  delete(value: IDisposable): void {
-    if (!this.values.delete(value)) return;
-    value.dispose();
-  }
-
   clear(): void {
     const values = [...this.values];
     this.values.clear();
@@ -68,33 +63,4 @@ export abstract class Disposable implements IDisposable {
   }
 }
 
-export class MutableDisposable<T extends IDisposable> implements IDisposable {
-  private current: T | undefined;
-  private disposed = false;
-
-  get value(): T | undefined {
-    return this.current;
-  }
-
-  set value(value: T | undefined) {
-    if (this.disposed) {
-      value?.dispose();
-      return;
-    }
-    if (value === this.current) return;
-    this.current?.dispose();
-    this.current = value;
-  }
-
-  clear(): void {
-    this.value = undefined;
-  }
-
-  dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    this.current?.dispose();
-    this.current = undefined;
-  }
-}
 import { isFunction, toPlainObject } from './types.ts';

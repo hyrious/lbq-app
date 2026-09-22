@@ -1,5 +1,5 @@
 import type { IpcBridge, RpcRequest, RpcResponse } from '../../src/platform/ipc/common/ipc.ts';
-import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail } from './common.ts';
+import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from './common.ts';
 
 declare global {
   interface Window {
@@ -19,6 +19,14 @@ interface FileDiffMetadata {}
 
 interface ParsedPatch {
   files: FileDiffMetadata[];
+}
+
+interface SubjectStatusInput {
+  state?: unknown;
+  state_reason?: unknown;
+  stateReason?: unknown;
+  draft?: unknown;
+  merged?: unknown;
 }
 
 interface FileDiffOptions {
@@ -122,6 +130,23 @@ class GitHubClient {
 
   getCachedDetail(item: NotificationItem): SubjectDetail | undefined {
     return this.detailCache.get(this.notificationKey(item));
+  }
+
+  async getStatus(item: NotificationItem): Promise<SubjectStatus> {
+    const detail = this.detailCache.get(this.notificationKey(item));
+    if (detail) return subjectStatus(detail.kind, detail);
+    return await this.fetchStatus(item);
+  }
+
+  private async fetchStatus(item: NotificationItem): Promise<SubjectStatus> {
+    if (!item.owner || !item.repo || !item.number || (item.kind != 'Issue' && item.kind != 'PullRequest')) {
+      throw new Error('通知内容无效。');
+    }
+    const section = item.kind == 'PullRequest' ? 'pulls' : 'issues';
+    const value = await this.request(
+      `/repos/${encodeURIComponent(item.owner)}/${encodeURIComponent(item.repo)}/${section}/${item.number}`
+    );
+    return subjectStatus(item.kind, plainObject(value) ?? {});
   }
 
   private async fetchDetail(item: NotificationItem): Promise<SubjectDetail> {
@@ -254,7 +279,6 @@ class GitHubClient {
       id: stringValue(row?.id) ?? '',
       kind,
       subjectType: rawKind ?? '',
-      reason: stringValue(row?.reason) ?? '',
       repository: fullName,
       title: stringValue(subject?.title) ?? '',
       updatedAt: stringValue(row?.updated_at) ?? '',
@@ -286,6 +310,7 @@ class GitHubClient {
       title: stringValue(detail?.title) ?? '',
       body: stringValue(detail?.body) ?? '',
       state: stringValue(detail?.state) ?? '',
+      stateReason: stringValue(detail?.state_reason),
       author: stringValue(user?.login) ?? '',
       avatarUrl: stringValue(user?.avatar_url) ?? '',
       createdAt: stringValue(detail?.created_at) ?? '',
@@ -295,9 +320,6 @@ class GitHubClient {
       comments,
       draft: kind == 'PullRequest' ? detail?.draft == true : undefined,
       merged: kind == 'PullRequest' ? detail?.merged == true : undefined,
-      mergeable: kind == 'PullRequest' && (detail?.mergeable == null || typeof detail.mergeable == 'boolean')
-        ? detail.mergeable : undefined,
-      mergeableState: kind == 'PullRequest' ? stringValue(detail?.mergeable_state) : undefined,
       headSha: kind == 'PullRequest' ? stringValue(head?.sha) : undefined,
       headLabel: kind == 'PullRequest' ? stringValue(head?.label) : undefined,
       baseLabel: kind == 'PullRequest' ? stringValue(base?.label) : undefined,
@@ -387,13 +409,22 @@ async function refresh() {
   try {
     const client = await clientPromise;
     const inbox = new Map(items.map(item => [item.id, item]));
-    for (const item of await client.getUnreadNotifications()) inbox.set(item.id, item);
+    for (const item of await client.getUnreadNotifications()) {
+      const existing = inbox.get(item.id);
+      if (existing?.updatedAt == item.updatedAt) item.status = existing.status;
+      inbox.set(item.id, item);
+    }
     items = [...inbox.values()];
     sortInbox();
-    await client.saveInbox(items);
     const itemIds = new Set(items.map(item => item.id));
     for (const id of checkedIds) if (!itemIds.has(id)) checkedIds.delete(id);
     renderInbox();
+    await Promise.allSettled(items.map(async item => {
+      if (item.status || (item.kind != 'Issue' && item.kind != 'PullRequest')) return;
+      item.status = await client.getStatus(item);
+    }));
+    renderInbox();
+    await client.saveInbox(items);
   } catch (error) {
     inboxStatus.textContent = errorMessage(error);
     inboxStatus.classList.add('error');
@@ -509,11 +540,14 @@ function updateNotificationIcon(icon: HTMLElement, item: NotificationItem): void
   let name = 'bell-16';
   let tone = 'muted';
   if (item.subjectType == 'Issue') {
-    name = 'issue-opened-16';
-    tone = 'issue';
+    name = item.status == 'not-planned' ? 'skip-16' : item.status == 'completed' ? 'issue-closed-16' : 'issue-opened-16';
+    tone = item.status ?? 'muted';
   } else if (item.subjectType == 'PullRequest') {
-    name = 'git-merge-16';
-    tone = 'pull-request';
+    name = item.status == 'draft' ? 'git-pull-request-draft-16'
+      : item.status == 'merged' ? 'git-merge-16'
+      : item.status == 'closed' ? 'git-pull-request-closed-16'
+      : 'git-pull-request-16';
+    tone = item.status ?? 'muted';
   } else if (item.subjectType == 'Release') {
     name = 'tag-16';
   } else if (item.subjectType == 'Discussion') {
@@ -658,6 +692,9 @@ async function select(item: NotificationItem, external: boolean) {
       detailPanel.replaceChildren(element('div', 'loading', '正在加载…'));
       detail = await client.getDetail(item);
     }
+    item.status = subjectStatus(detail.kind, detail);
+    await client.saveInbox(items);
+    renderInbox();
     if (selectedId != item.id) return;
     renderDetail(detail);
   } catch (error) {
@@ -885,7 +922,11 @@ async function squashMerge(detail: SubjectDetail, button: HTMLButtonElement) {
     if (result.merged) {
       detail.merged = true;
       detail.state = 'closed';
+      const item = items.find(item => item.repository == detail.repository && item.number == detail.number);
+      if (item) item.status = 'merged';
       renderDetail(detail);
+      renderInbox();
+      await (await clientPromise).saveInbox(items);
     } else {
       button.disabled = false;
       button.textContent = 'Squash 合并';
@@ -1006,33 +1047,55 @@ function numberValue(value: unknown): number | undefined {
   return typeof value == 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function subjectStatus(kind: 'Issue' | 'PullRequest', value: SubjectStatusInput): SubjectStatus {
+  if (kind == 'PullRequest') {
+    if (value.merged == true) return 'merged';
+    if (value.state != 'open') return 'closed';
+    if (value.draft == true) return 'draft';
+    return 'open';
+  }
+  if (value.state == 'open') return 'open';
+  return value.state_reason == 'not_planned' || value.stateReason == 'not_planned' ? 'not-planned' : 'completed';
+}
+
 function toStoredNotification(value: unknown): NotificationItem | undefined {
   const item = plainObject(value);
   const id = stringValue(item?.id);
   const kind = stringValue(item?.kind);
   const subjectType = stringValue(item?.subjectType);
-  const reason = stringValue(item?.reason);
   const repository = stringValue(item?.repository);
   const title = stringValue(item?.title);
   const updatedAt = stringValue(item?.updatedAt);
   const url = stringValue(item?.url);
-  if (!id || (kind != 'Issue' && kind != 'PullRequest' && kind != 'Other') || subjectType == null || reason == null
+  if (!id || (kind != 'Issue' && kind != 'PullRequest' && kind != 'Other') || subjectType == null
     || repository == null || title == null || updatedAt == null || typeof item?.unread != 'boolean' || url == null) return;
   return {
     id,
     kind,
     subjectType,
-    reason,
     repository,
     title,
     updatedAt,
     unread: item.unread,
     url,
+    status: subjectStatusValue(item.status),
     releasePath: stringValue(item.releasePath),
     owner: stringValue(item.owner),
     repo: stringValue(item.repo),
     number: numberValue(item.number)
   };
+}
+
+function subjectStatusValue(value: unknown): SubjectStatus | undefined {
+  switch (value) {
+    case 'open':
+    case 'draft':
+    case 'merged':
+    case 'closed':
+    case 'completed':
+    case 'not-planned':
+      return value;
+  }
 }
 
 function setCached<V>(cache: Map<string, V>, key: string, value: V): void {

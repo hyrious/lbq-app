@@ -86,8 +86,10 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
   color: color-mix(in srgb, CanvasText 48%, transparent);
   font-size: 16px;
 }
-.notification-icon.issue { color: light-dark(#1a7f37, #3fb950); }
-.notification-icon.pull-request { color: light-dark(#8250df, #a371f7); }
+.notification-icon.open { color: light-dark(#1a7f37, #3fb950); }
+.notification-icon.merged, .notification-icon.completed { color: light-dark(#8250df, #a371f7); }
+.notification-icon.closed { color: light-dark(#cf222e, #f85149); }
+.notification-icon.draft, .notification-icon.not-planned { color: light-dark(#656d76, #8c959f); }
 .notification:hover, .notification.current { background: color-mix(in srgb, CanvasText 7%, transparent); }
 .notification:not(.unread) .notification-content { opacity: .52; }
 .notification:hover .notification-content { opacity: 1; }

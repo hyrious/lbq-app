@@ -74,10 +74,6 @@ export class InstantiationService implements ServicesAccessor, IDisposable {
     throw new Error(`Unknown service: ${id.id}`);
   }
 
-  invokeFunction<R>(callback: (accessor: ServicesAccessor) => R): R {
-    return callback(this);
-  }
-
   createChild(): InstantiationService {
     return new InstantiationService(this);
   }

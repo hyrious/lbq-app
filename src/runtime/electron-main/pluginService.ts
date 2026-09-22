@@ -1,6 +1,7 @@
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { app } from 'electron';
 import { DisposableStore, type IDisposable } from '../../base/common/lifecycle.ts';
 import { Emitter, type Event } from '../../base/common/event.ts';
 import { isFunction, toBoolean, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
@@ -16,6 +17,7 @@ interface PluginModule {
 interface PluginRecord {
   readonly plugin: Plugin;
   activation?: Promise<PluginSession>;
+  opening?: Promise<void>;
   window?: PluginWindow;
 }
 
@@ -35,6 +37,11 @@ export class PluginService implements IDisposable {
   private readonly rootServices: InstantiationService;
   private readonly ipcRouter: IpcRouter;
   private readonly windowService: WindowService;
+  private readonly windowStatePath: string;
+  private readonly temporaryWindowStatePath: string;
+  private readonly restorableIds = new Set<string>();
+  private stateWrite = Promise.resolve();
+  private disposing = false;
   readonly onDidChangePlugins: Event<readonly PluginInfo[]> = this.onDidChangePluginsEmitter.event;
 
   constructor(toolsRoot: string, rootServices: InstantiationService, ipcRouter: IpcRouter, windowService: WindowService) {
@@ -42,9 +49,12 @@ export class PluginService implements IDisposable {
     this.rootServices = rootServices;
     this.ipcRouter = ipcRouter;
     this.windowService = windowService;
+    this.windowStatePath = join(app.getPath('userData'), 'open-plugin-windows.json');
+    this.temporaryWindowStatePath = `${this.windowStatePath}.tmp`;
   }
 
   async discover(): Promise<void> {
+    const storedIds = await this.readRestorableIds();
     const entries = await readdir(this.toolsRoot, { withFileTypes: true });
     for (const entry of entries.filter(entry => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
       const module = await import(pathToFileURL(join(this.toolsRoot, entry.name, 'plugin.ts')).href) as PluginModule;
@@ -52,7 +62,13 @@ export class PluginService implements IDisposable {
       if (this.records.has(plugin.id)) throw new Error(`Duplicate plugin identifier: ${plugin.id}`);
       this.records.set(plugin.id, { plugin });
     }
+    for (const id of storedIds) if (this.records.has(id)) this.restorableIds.add(id);
+    if (this.restorableIds.size != storedIds.size) this.saveRestorableIds();
     this.fireDidChangePlugins();
+    await Promise.all([...this.restorableIds].map(id => this.open(id).catch(error => {
+      this.setRestorable(id, false);
+      console.error(`Failed to restore plugin window: ${id}`, error);
+    })));
   }
 
   getPlugins(): readonly PluginInfo[] {
@@ -70,16 +86,30 @@ export class PluginService implements IDisposable {
       if (record.window.browserWindow.isMinimized()) record.window.browserWindow.restore();
       record.window.browserWindow.show();
       record.window.browserWindow.focus();
+      this.setRestorable(id, true);
       return;
     }
 
+    if (!record.opening) {
+      const opening = this.openWindow(record).finally(() => {
+        if (record.opening == opening) record.opening = undefined;
+      });
+      record.opening = opening;
+    }
+    await record.opening;
+  }
+
+  private async openWindow(record: PluginRecord): Promise<void> {
     const session = await this.activate(record);
     try {
       record.window = await this.windowService.open(record.plugin, () => {
         record.window = undefined;
+        this.setRestorable(record.plugin.id, false);
         this.deactivate(record);
         this.fireDidChangePlugins();
       });
+      record.window.browserWindow.on('hide', () => this.setRestorable(record.plugin.id, false));
+      this.setRestorable(record.plugin.id, true);
       this.fireDidChangePlugins();
     } catch (error) {
       session.dispose();
@@ -89,6 +119,7 @@ export class PluginService implements IDisposable {
   }
 
   dispose(): void {
+    this.disposing = true;
     for (const record of this.records.values()) {
       record.window?.dispose();
       this.deactivate(record);
@@ -123,6 +154,32 @@ export class PluginService implements IDisposable {
 
   private fireDidChangePlugins(): void {
     this.onDidChangePluginsEmitter.fire(this.getPlugins());
+  }
+
+  private async readRestorableIds(): Promise<Set<string>> {
+    try {
+      const value = toPlainObject(JSON.parse(await readFile(this.windowStatePath, 'utf8')));
+      if (value?.version != 1 || !Array.isArray(value.ids)) return new Set();
+      return new Set(value.ids.map(toNonEmptyString).filter((id): id is string => id != null));
+    } catch {
+      return new Set();
+    }
+  }
+
+  private setRestorable(id: string, restorable: boolean): void {
+    if (this.disposing || this.restorableIds.has(id) == restorable) return;
+    if (restorable) this.restorableIds.add(id);
+    else this.restorableIds.delete(id);
+    this.saveRestorableIds();
+  }
+
+  private saveRestorableIds(): void {
+    const contents = JSON.stringify({ version: 1, ids: [...this.restorableIds] });
+    const nextWrite = this.stateWrite.then(async () => {
+      await writeFile(this.temporaryWindowStatePath, contents);
+      await rename(this.temporaryWindowStatePath, this.windowStatePath);
+    });
+    this.stateWrite = nextWrite.catch(error => console.error('Failed to save restorable plugin windows.', error));
   }
 
   private assertPlugin(value: unknown, directory: string): Plugin {

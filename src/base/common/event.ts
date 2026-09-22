@@ -38,26 +38,3 @@ export class Emitter<T> implements IDisposable {
     this.listeners.clear();
   }
 }
-
-export const Event = {
-  once<T>(event: Event<T>): Event<T> {
-    return (listener, disposables) => {
-      let subscription: IDisposable | undefined;
-      subscription = event(value => {
-        subscription?.dispose();
-        listener(value);
-      });
-      return disposables?.add(subscription) ?? subscription;
-    };
-  },
-
-  map<T, R>(event: Event<T>, mapper: (value: T) => R): Event<R> {
-    return (listener, disposables) => event(value => listener(mapper(value)), disposables);
-  },
-
-  filter<T>(event: Event<T>, predicate: (value: T) => boolean): Event<T> {
-    return (listener, disposables) => event(value => {
-      if (predicate(value)) listener(value);
-    }, disposables);
-  }
-};

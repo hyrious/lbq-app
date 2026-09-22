@@ -1,17 +1,18 @@
 import type { RpcMethod } from '../../src/platform/ipc/common/ipc.ts';
 
 export type SubjectKind = 'Issue' | 'PullRequest' | 'Other';
+export type SubjectStatus = 'open' | 'draft' | 'merged' | 'closed' | 'completed' | 'not-planned';
 
 export interface NotificationItem {
   id: string;
   kind: SubjectKind;
   subjectType: string;
-  reason: string;
   repository: string;
   title: string;
   updatedAt: string;
   unread: boolean;
   url: string;
+  status?: SubjectStatus;
   releasePath?: string;
   owner?: string;
   repo?: string;
@@ -33,6 +34,7 @@ export interface SubjectDetail {
   title: string;
   body: string;
   state: string;
+  stateReason?: string;
   author: string;
   avatarUrl: string;
   createdAt: string;
@@ -42,8 +44,6 @@ export interface SubjectDetail {
   comments: Comment[];
   draft?: boolean;
   merged?: boolean;
-  mergeable?: boolean | null;
-  mergeableState?: string;
   headSha?: string;
   headLabel?: string;
   baseLabel?: string;
