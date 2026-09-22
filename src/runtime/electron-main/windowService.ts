@@ -66,6 +66,12 @@ export class WindowService {
       void shell.openExternal(details.url);
       return { action: 'deny' };
     });
+    if (plugin.window.hideOnClose) {
+      window.on('close', event => {
+        event.preventDefault();
+        window.hide();
+      });
+    }
 
     const closed = () => {
       store.dispose();

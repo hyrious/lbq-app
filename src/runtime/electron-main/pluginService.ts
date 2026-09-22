@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DisposableStore, type IDisposable } from '../../base/common/lifecycle.ts';
 import { Emitter, type Event } from '../../base/common/event.ts';
-import { isFunction, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
+import { isFunction, toBoolean, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
 import type { InstantiationService } from '../../platform/instantiation/common/instantiation.ts';
 import type { IpcHandlers, IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
 import type { Plugin, PluginContext } from './plugin.ts';
@@ -25,6 +25,7 @@ interface PluginSession extends IDisposable {
 export interface PluginInfo {
   readonly id: string;
   readonly name: string;
+  readonly alive: boolean;
 }
 
 export class PluginService implements IDisposable {
@@ -51,11 +52,15 @@ export class PluginService implements IDisposable {
       if (this.records.has(plugin.id)) throw new Error(`Duplicate plugin identifier: ${plugin.id}`);
       this.records.set(plugin.id, { plugin });
     }
-    this.onDidChangePluginsEmitter.fire(this.getPlugins());
+    this.fireDidChangePlugins();
   }
 
   getPlugins(): readonly PluginInfo[] {
-    return [...this.records.values()].map(record => ({ id: record.plugin.id, name: record.plugin.name }));
+    return [...this.records.values()].map(record => ({
+      id: record.plugin.id,
+      name: record.plugin.name,
+      alive: record.window != null && !record.window.browserWindow.isDestroyed()
+    }));
   }
 
   async open(id: string): Promise<void> {
@@ -73,7 +78,9 @@ export class PluginService implements IDisposable {
       record.window = await this.windowService.open(record.plugin, () => {
         record.window = undefined;
         this.deactivate(record);
+        this.fireDidChangePlugins();
       });
+      this.fireDidChangePlugins();
     } catch (error) {
       session.dispose();
       record.activation = undefined;
@@ -114,6 +121,10 @@ export class PluginService implements IDisposable {
     void activation?.then(session => session.dispose());
   }
 
+  private fireDidChangePlugins(): void {
+    this.onDidChangePluginsEmitter.fire(this.getPlugins());
+  }
+
   private assertPlugin(value: unknown, directory: string): Plugin {
     const plugin = toPlainObject(value);
     const window = toPlainObject(plugin?.window);
@@ -135,6 +146,7 @@ export class PluginService implements IDisposable {
         height,
         minWidth: toNumber(window?.minWidth),
         minHeight: toNumber(window?.minHeight),
+        hideOnClose: toBoolean(window?.hideOnClose),
         titleBarStyle: toTitleBarStyle(window?.titleBarStyle),
         vibrancy: toVibrancy(window?.vibrancy)
       },

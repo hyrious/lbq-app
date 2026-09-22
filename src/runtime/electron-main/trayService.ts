@@ -23,7 +23,7 @@ export class TrayService extends Disposable {
 
   private updateMenu(plugins: readonly PluginInfo[]): void {
     const template: Electron.MenuItemConstructorOptions[] = plugins.map(plugin => ({
-      label: plugin.name,
+      label: plugin.alive ? `${plugin.name}*` : plugin.name,
       click: () => void this.plugins.open(plugin.id).catch(error => this.reportError(error))
     }));
     if (template.length) template.push({ type: 'separator' });

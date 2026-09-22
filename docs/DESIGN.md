@@ -8,12 +8,14 @@ LBQ is a single Electron runtime for trusted, built-in tools. Tools are structur
 - The host owns Electron lifecycle, Tray, windows, protocol routing, and IPC routing.
 - A tool owns its business services, RPC schema, renderer, and assets.
 - Root services live for the application. Plugin services and registrations live for one activation.
-- Closing a tool window disposes its activation. Reopening it creates a fresh scope.
+- Closing a tool window disposes its activation unless `window.hideOnClose` keeps both alive for reuse.
 - TypeScript must satisfy `erasableSyntaxOnly`; no bundler or transform step exists.
 
 ## Plugin Contract
 
 Each plugin exports `plugin: Plugin`. Its directory name must equal `plugin.id`. Metadata is loaded at startup to build the Tray menu, while `activate()` runs only when the tool is opened.
+
+Setting `window.hideOnClose` hides the window on close. Opening the tool again shows the existing window without recreating its activation.
 
 `PluginContext` contains:
 

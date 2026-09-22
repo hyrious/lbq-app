@@ -35,6 +35,7 @@ export const plugin: Plugin = {
     height: 416,
     minWidth: 440,
     minHeight: 320,
+    hideOnClose: true,
     titleBarStyle: 'hiddenInset',
     vibrancy: 'under-window'
   },

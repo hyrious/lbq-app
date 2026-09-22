@@ -31,6 +31,9 @@ Window closed
   → dispose plugin services and IPC handlers
 ```
 
+With `window.hideOnClose`, the close action hides the existing window instead. The window, WebContents, and plugin activation remain alive until the runtime exits.
+The Tray marks tools with a live window as running, including windows hidden by this option.
+
 Closing the last window does not terminate LBQ. Choosing Quit from the Tray disposes the runtime and exits.
 
 ## RPC
