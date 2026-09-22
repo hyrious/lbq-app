@@ -24,7 +24,7 @@ main { height: calc(100% - 38px); }
 .inbox { height: 100%; display: flex; flex-direction: column; }
 .selection-bar {
   flex: none;
-  height: 42px;
+  height: 26px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -33,11 +33,10 @@ main { height: calc(100% - 38px); }
 }
 .select-all { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 500; }
 input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: AccentColor; }
-.mark-read {
+.selection-action {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-left: auto;
   padding: 5px 9px;
   border: 0;
   border-radius: 6px;
@@ -45,8 +44,9 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
   font-size: 11px;
   cursor: pointer;
 }
-.mark-read:hover { background: color-mix(in srgb, CanvasText 14%, transparent); }
-.mark-read:disabled { opacity: .5; }
+.select-all + .selection-action { margin-left: auto; }
+.selection-action:hover { background: color-mix(in srgb, CanvasText 14%, transparent); }
+.selection-action:disabled { opacity: .5; }
 .status {
   flex: none;
   padding: 8px 14px;
@@ -119,7 +119,6 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
   animation: notification-spin .7s linear infinite;
 }
 @keyframes notification-spin { to { transform: rotate(360deg); } }
-.selection-placeholder { width: 15px; height: 15px; }
 .notification-repo {
   overflow: hidden;
   color: currentColor;

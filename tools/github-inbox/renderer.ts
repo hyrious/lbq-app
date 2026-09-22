@@ -204,7 +204,11 @@ class GitHubClient {
     await Promise.all(ids.map(id => this.markThreadRead(id)));
   }
 
-  async markDone(id: string): Promise<void> {
+  async markDone(ids: readonly string[]): Promise<void> {
+    await Promise.all(ids.map(id => this.markThreadDone(id)));
+  }
+
+  private async markThreadDone(id: string): Promise<void> {
     if (!/^\d+$/.test(id)) return;
     await this.request(`/notifications/threads/${id}`, { method: 'DELETE' });
   }
@@ -319,6 +323,7 @@ class GitHubClient {
 const selectAllInput = getElement<HTMLInputElement>('select-all');
 const selectionBar = getElement<HTMLDivElement>('selection-bar');
 const selectionLabel = getElement<HTMLSpanElement>('selection-label');
+const markDoneButton = getElement<HTMLButtonElement>('mark-done');
 const markReadButton = getElement<HTMLButtonElement>('mark-read');
 const inboxStatus = getElement<HTMLDivElement>('inbox-status');
 const notifications = getElement<HTMLDivElement>('notifications');
@@ -350,9 +355,10 @@ void import(iconifyUrl);
 
 selectAllInput.onchange = () => {
   checkedIds.clear();
-  if (selectAllInput.checked) for (const item of items) if (item.unread) checkedIds.add(item.id);
+  if (selectAllInput.checked) for (const item of items) checkedIds.add(item.id);
   renderInbox();
 };
+markDoneButton.onclick = () => void markSelectedDone();
 markReadButton.onclick = () => void markSelectedRead();
 detailScrim.onclick = event => {
   event.preventDefault();
@@ -361,6 +367,7 @@ detailScrim.onclick = event => {
 };
 diffScrim.onclick = closeDiff;
 splitDiffMedia.onchange = updateDiffStyle;
+document.addEventListener('keydown', handleShortcut);
 await initialize();
 window.addEventListener('focus', () => refreshQueue.enqueue(120));
 setInterval(() => refreshQueue.enqueue(), 60_000);
@@ -384,8 +391,8 @@ async function refresh() {
     items = [...inbox.values()];
     sortInbox();
     await client.saveInbox(items);
-    const unreadIds = new Set(items.filter(item => item.unread).map(item => item.id));
-    for (const id of checkedIds) if (!unreadIds.has(id)) checkedIds.delete(id);
+    const itemIds = new Set(items.map(item => item.id));
+    for (const id of checkedIds) if (!itemIds.has(id)) checkedIds.delete(id);
     renderInbox();
   } catch (error) {
     inboxStatus.textContent = errorMessage(error);
@@ -434,6 +441,8 @@ function renderInbox() {
 function createNotificationRow(): HTMLDivElement {
   const row = document.createElement('div');
   row.setAttribute('role', 'listitem');
+  const selection = document.createElement('input');
+  selection.type = 'checkbox';
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'notification-content';
@@ -450,7 +459,7 @@ function createNotificationRow(): HTMLDivElement {
   doneIcon.setAttribute('icon', 'octicon:check-16');
   doneIcon.setAttribute('aria-hidden', 'true');
   doneButton.append(doneIcon);
-  row.append(element('span', 'selection-placeholder', ''), createNotificationIcon(), button, doneButton);
+  row.append(selection, createNotificationIcon(), button, doneButton);
   return row;
 }
 
@@ -460,24 +469,14 @@ function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): voi
   const completing = completingIds.has(item.id);
   row.className = `notification${item.id == selectedId ? ' current' : ''}${item.unread ? ' unread' : ''}${opening ? ' opening' : ''}`;
 
-  let selection = row.firstElementChild;
-  if (item.unread && !(selection instanceof HTMLInputElement)) {
-    selection = document.createElement('input');
-    row.firstElementChild?.replaceWith(selection);
-  } else if (!item.unread && selection instanceof HTMLInputElement) {
-    selection = element('span', 'selection-placeholder', '');
-    row.firstElementChild?.replaceWith(selection);
-  }
-  if (selection instanceof HTMLInputElement) {
-    selection.type = 'checkbox';
-    selection.checked = checkedIds.has(item.id);
-    selection.setAttribute('aria-label', `选择 ${item.title}`);
-    selection.onchange = () => {
-      if (selection.checked) checkedIds.add(item.id);
-      else checkedIds.delete(item.id);
-      renderInbox();
-    };
-  }
+  const selection = row.firstElementChild as HTMLInputElement;
+  selection.checked = checkedIds.has(item.id);
+  selection.setAttribute('aria-label', `选择 ${item.title}`);
+  selection.onchange = () => {
+    if (selection.checked) checkedIds.add(item.id);
+    else checkedIds.delete(item.id);
+    renderInbox();
+  };
 
   const button = row.children[2] as HTMLButtonElement;
   const doneButton = row.children[3] as HTMLButtonElement;
@@ -533,13 +532,41 @@ function updateNotificationIcon(icon: HTMLElement, item: NotificationItem): void
 }
 
 function renderSelectionBar() {
-  const unreadItems = items.filter(item => item.unread);
   const count = checkedIds.size;
-  selectionBar.classList.toggle('hidden', unreadItems.length == 0);
-  selectAllInput.checked = !!unreadItems.length && count == unreadItems.length;
-  selectAllInput.indeterminate = 0 < count && count < unreadItems.length;
+  selectionBar.classList.toggle('hidden', items.length == 0);
+  selectAllInput.checked = !!items.length && count == items.length;
+  selectAllInput.indeterminate = 0 < count && count < items.length;
   selectionLabel.textContent = count ? `已选择 ${count} 项` : '全选';
+  markDoneButton.classList.toggle('hidden', count == 0);
   markReadButton.classList.toggle('hidden', count == 0);
+}
+
+function handleShortcut(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isEditing(event.target)) return;
+  const key = event.key.toLowerCase();
+  if (key == 'a' && !event.shiftKey && items.length) {
+    event.preventDefault();
+    if (checkedIds.size == items.length) {
+      checkedIds.clear();
+    } else {
+      checkedIds.clear();
+      for (const item of items) checkedIds.add(item.id);
+    }
+    renderInbox();
+  } else if (key == 'e' && !event.shiftKey && checkedIds.size) {
+    event.preventDefault();
+    void markSelectedDone();
+  } else if (key == 'i' && event.shiftKey && checkedIds.size) {
+    event.preventDefault();
+    void markSelectedRead();
+  } else if (key == 'u' && event.shiftKey && checkedIds.size) {
+    event.preventDefault();
+    void markSelectedUnread();
+  }
+}
+
+function isEditing(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'));
 }
 
 async function markSelectedRead() {
@@ -557,6 +584,37 @@ async function markSelectedRead() {
     showToast(errorMessage(error), 'error');
   } finally {
     markReadButton.disabled = false;
+  }
+}
+
+async function markSelectedUnread(): Promise<void> {
+  const selectedIds = new Set(checkedIds);
+  for (const item of items) if (selectedIds.has(item.id)) item.unread = true;
+  checkedIds.clear();
+  try {
+    await (await clientPromise).saveInbox(items);
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  }
+  renderInbox();
+}
+
+async function markSelectedDone(): Promise<void> {
+  const ids = [...checkedIds];
+  if (!ids.length) return;
+  markDoneButton.disabled = true;
+  try {
+    await (await clientPromise).markDone(ids);
+    const doneIds = new Set(ids);
+    items = items.filter(item => !doneIds.has(item.id));
+    checkedIds.clear();
+    if (doneIds.has(selectedId)) closeDetail();
+    await (await clientPromise).saveInbox(items);
+    renderInbox();
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  } finally {
+    markDoneButton.disabled = false;
   }
 }
 
@@ -613,7 +671,7 @@ async function markDone(item: NotificationItem) {
   renderInbox();
   try {
     const client = await clientPromise;
-    await client.markDone(item.id);
+    await client.markDone([item.id]);
     items = items.filter(candidate => candidate.id != item.id);
     checkedIds.delete(item.id);
     if (selectedId == item.id) closeDetail();
