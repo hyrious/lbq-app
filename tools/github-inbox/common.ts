@@ -58,5 +58,7 @@ export interface ExternalRequest {
 
 export interface GitHubInboxRpc {
   getToken: RpcMethod<undefined, string>;
+  loadInbox: RpcMethod<undefined, unknown>;
   openExternal: RpcMethod<ExternalRequest, void>;
+  saveInbox: RpcMethod<readonly NotificationItem[], void>;
 }

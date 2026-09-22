@@ -57,13 +57,29 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 .notifications { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 8px; }
 .notification {
   display: grid;
-  grid-template-columns: 15px 16px minmax(0, 1fr);
+  grid-template-columns: 15px 16px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 9px;
   padding: 7px 8px;
   border-radius: 8px;
   background: transparent;
 }
+.notification-done {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: color-mix(in srgb, CanvasText 60%, transparent);
+  background: transparent;
+  visibility: hidden;
+  cursor: pointer;
+}
+.notification:hover .notification-done, .notification:focus-within .notification-done { visibility: visible; }
+.notification-done:hover { color: CanvasText; background: color-mix(in srgb, CanvasText 9%, transparent); }
+.notification-done:disabled { opacity: .5; cursor: wait; }
 .notification-icon {
   width: 16px;
   height: 16px;

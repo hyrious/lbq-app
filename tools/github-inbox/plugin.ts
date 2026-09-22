@@ -1,11 +1,43 @@
 import { execFile } from 'node:child_process';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import { shell } from 'electron';
-import { toNonEmptyString } from '../../src/base/common/types.ts';
+import { join } from 'node:path';
+import { app, shell } from 'electron';
+import { toNonEmptyString, toPlainObject } from '../../src/base/common/types.ts';
 import type { Plugin } from '../../src/runtime/electron-main/plugin.ts';
-import type { GitHubInboxRpc } from './common.ts';
+import type { GitHubInboxRpc, NotificationItem } from './common.ts';
 
 const execFileAsync = promisify(execFile);
+
+class InboxStore {
+  private readonly path: string;
+  private readonly temporaryPath: string;
+  private write = Promise.resolve();
+
+  constructor(path: string) {
+    this.path = path;
+    this.temporaryPath = `${path}.tmp`;
+  }
+
+  async load(): Promise<unknown> {
+    try {
+      const state = toPlainObject(JSON.parse(await readFile(this.path, 'utf8')));
+      return state?.version == 1 && Array.isArray(state.items) ? state.items : [];
+    } catch {
+      return [];
+    }
+  }
+
+  save(items: readonly NotificationItem[]): Promise<void> {
+    const contents = JSON.stringify({ version: 1, items });
+    const nextWrite = this.write.then(async () => {
+      await writeFile(this.temporaryPath, contents);
+      await rename(this.temporaryPath, this.path);
+    });
+    this.write = nextWrite.catch(() => {});
+    return nextWrite;
+  }
+}
 
 async function getToken(): Promise<string> {
   try {
@@ -40,9 +72,12 @@ export const plugin: Plugin = {
     vibrancy: 'under-window'
   },
   activate(context) {
+    const inbox = new InboxStore(join(app.getPath('userData'), 'github-inbox.json'));
     context.bindIpc<GitHubInboxRpc>({
       getToken: () => getToken(),
-      openExternal: input => openExternal(input?.url)
+      loadInbox: () => inbox.load(),
+      openExternal: input => openExternal(input?.url),
+      saveInbox: input => inbox.save(input)
     });
   }
 };

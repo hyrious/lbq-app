@@ -89,9 +89,20 @@ class GitHubClient {
     return new GitHubClient(await invoke('getToken', undefined));
   }
 
-  async getNotifications(): Promise<NotificationItem[]> {
-    const value = await this.request('/notifications?all=true&per_page=50');
+  async getUnreadNotifications(): Promise<NotificationItem[]> {
+    const value = await this.request('/notifications?per_page=50');
     return Array.isArray(value) ? value.map(row => this.toNotification(row)) : [];
+  }
+
+  async loadInbox(): Promise<NotificationItem[]> {
+    const value = await invoke('loadInbox', undefined);
+    return Array.isArray(value)
+      ? value.map(toStoredNotification).filter((item): item is NotificationItem => item != null)
+      : [];
+  }
+
+  async saveInbox(items: readonly NotificationItem[]): Promise<void> {
+    await invoke('saveInbox', items);
   }
 
   async getDetail(item: NotificationItem): Promise<SubjectDetail> {
@@ -121,8 +132,7 @@ class GitHubClient {
     const path = item.kind == 'PullRequest' ? `${base}/pulls/${item.number}` : `${base}/issues/${item.number}`;
     const [detail, comments] = await Promise.all([
       this.request(path),
-      this.request(`${base}/issues/${item.number}/comments?per_page=100`),
-      this.markThreadRead(item.id)
+      this.request(`${base}/issues/${item.number}/comments?per_page=100`)
     ]);
     return this.toDetail(item.kind, item.repository, item.number, detail, comments);
   }
@@ -167,7 +177,9 @@ class GitHubClient {
   }
 
   async open(item: NotificationItem): Promise<void> {
-    await Promise.all([this.markThreadRead(item.id), this.openNotification(item)]);
+    const requests = [this.openNotification(item)];
+    if (item.unread) requests.push(this.markThreadRead(item.id));
+    await Promise.all(requests);
   }
 
   async openUrl(url: string): Promise<void> {
@@ -190,6 +202,11 @@ class GitHubClient {
 
   async markRead(ids: readonly string[]): Promise<void> {
     await Promise.all(ids.map(id => this.markThreadRead(id)));
+  }
+
+  async markDone(id: string): Promise<void> {
+    if (!/^\d+$/.test(id)) return;
+    await this.request(`/notifications/threads/${id}`, { method: 'DELETE' });
   }
 
   private async markThreadRead(id: string): Promise<void> {
@@ -313,6 +330,7 @@ const toastRegion = getElement<HTMLDivElement>('toasts');
 let items: NotificationItem[] = [];
 let selectedId = '';
 const openingIds = new Set<string>();
+const completingIds = new Set<string>();
 let diffInstances: FileDiffInstance[] = [];
 let diffRequest = 0;
 let pierreDiffsModule: PierreDiffsModule | undefined;
@@ -343,13 +361,29 @@ detailScrim.onclick = event => {
 };
 diffScrim.onclick = closeDiff;
 splitDiffMedia.onchange = updateDiffStyle;
+await initialize();
 window.addEventListener('focus', () => refreshQueue.enqueue(120));
 setInterval(() => refreshQueue.enqueue(), 60_000);
 refreshQueue.enqueue();
 
+async function initialize() {
+  try {
+    items = await (await clientPromise).loadInbox();
+    sortInbox();
+    renderInbox();
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  }
+}
+
 async function refresh() {
   try {
-    items = await (await clientPromise).getNotifications();
+    const client = await clientPromise;
+    const inbox = new Map(items.map(item => [item.id, item]));
+    for (const item of await client.getUnreadNotifications()) inbox.set(item.id, item);
+    items = [...inbox.values()];
+    sortInbox();
+    await client.saveInbox(items);
     const unreadIds = new Set(items.filter(item => item.unread).map(item => item.id));
     for (const id of checkedIds) if (!unreadIds.has(id)) checkedIds.delete(id);
     renderInbox();
@@ -407,13 +441,23 @@ function createNotificationRow(): HTMLDivElement {
     element('span', 'notification-repo', ''),
     element('strong', 'notification-title', '')
   );
-  row.append(element('span', 'selection-placeholder', ''), createNotificationIcon(), button);
+  const doneButton = document.createElement('button');
+  doneButton.type = 'button';
+  doneButton.className = 'notification-done';
+  doneButton.title = '标记为已完成';
+  doneButton.setAttribute('aria-label', '标记为已完成');
+  const doneIcon = document.createElement('iconify-icon');
+  doneIcon.setAttribute('icon', 'octicon:check-16');
+  doneIcon.setAttribute('aria-hidden', 'true');
+  doneButton.append(doneIcon);
+  row.append(element('span', 'selection-placeholder', ''), createNotificationIcon(), button, doneButton);
   return row;
 }
 
 function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): void {
   row.dataset.notificationId = item.id;
   const opening = openingIds.has(item.id);
+  const completing = completingIds.has(item.id);
   row.className = `notification${item.id == selectedId ? ' current' : ''}${item.unread ? ' unread' : ''}${opening ? ' opening' : ''}`;
 
   let selection = row.firstElementChild;
@@ -435,7 +479,8 @@ function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): voi
     };
   }
 
-  const button = row.lastElementChild as HTMLButtonElement;
+  const button = row.children[2] as HTMLButtonElement;
+  const doneButton = row.children[3] as HTMLButtonElement;
   const icon = row.children[1] as HTMLElement;
   const repository = button.firstElementChild as HTMLSpanElement;
   const title = button.lastElementChild as HTMLElement;
@@ -448,6 +493,10 @@ function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): voi
   button.disabled = opening;
   button.setAttribute('aria-label', opening ? `正在打开 ${item.title}` : item.title);
   button.onclick = event => void select(item, event.metaKey || event.ctrlKey);
+  doneButton.disabled = completing;
+  doneButton.title = completing ? '正在完成…' : '标记为已完成';
+  doneButton.setAttribute('aria-label', doneButton.title);
+  doneButton.onclick = () => void markDone(item);
 }
 
 function createNotificationIcon(): HTMLElement {
@@ -502,6 +551,7 @@ async function markSelectedRead() {
     const readIds = new Set(ids);
     for (const item of items) if (readIds.has(item.id)) item.unread = false;
     checkedIds.clear();
+    await (await clientPromise).saveInbox(items);
     renderInbox();
   } catch (error) {
     showToast(errorMessage(error), 'error');
@@ -520,6 +570,7 @@ async function select(item: NotificationItem, external: boolean) {
     try {
       await (await clientPromise).open(item);
       item.unread = false;
+      await (await clientPromise).saveInbox(items);
     } catch (error) {
       showToast(errorMessage(error), 'error');
     } finally {
@@ -538,19 +589,45 @@ async function select(item: NotificationItem, external: boolean) {
   try {
     const client = await clientPromise;
     if (selectedId != item.id) return;
+    if (item.unread) {
+      await client.markRead([item.id]);
+      item.unread = false;
+      await client.saveInbox(items);
+      renderInbox();
+    }
     let detail = client.getCachedDetail(item);
     if (!detail) {
       detailPanel.replaceChildren(element('div', 'loading', '正在加载…'));
       detail = await client.getDetail(item);
     }
     if (selectedId != item.id) return;
-    item.unread = false;
-    renderInbox();
     renderDetail(detail);
   } catch (error) {
     if (selectedId != item.id) return;
     detailPanel.replaceChildren(element('div', 'loading error', errorMessage(error)));
   }
+}
+
+async function markDone(item: NotificationItem) {
+  completingIds.add(item.id);
+  renderInbox();
+  try {
+    const client = await clientPromise;
+    await client.markDone(item.id);
+    items = items.filter(candidate => candidate.id != item.id);
+    checkedIds.delete(item.id);
+    if (selectedId == item.id) closeDetail();
+    await client.saveInbox(items);
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  } finally {
+    completingIds.delete(item.id);
+    renderInbox();
+  }
+}
+
+function sortInbox(): void {
+  items.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 function renderDetail(detail: SubjectDetail) {
@@ -869,6 +946,35 @@ function stringValue(value: unknown): string | undefined {
 
 function numberValue(value: unknown): number | undefined {
   return typeof value == 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function toStoredNotification(value: unknown): NotificationItem | undefined {
+  const item = plainObject(value);
+  const id = stringValue(item?.id);
+  const kind = stringValue(item?.kind);
+  const subjectType = stringValue(item?.subjectType);
+  const reason = stringValue(item?.reason);
+  const repository = stringValue(item?.repository);
+  const title = stringValue(item?.title);
+  const updatedAt = stringValue(item?.updatedAt);
+  const url = stringValue(item?.url);
+  if (!id || (kind != 'Issue' && kind != 'PullRequest' && kind != 'Other') || subjectType == null || reason == null
+    || repository == null || title == null || updatedAt == null || typeof item?.unread != 'boolean' || url == null) return;
+  return {
+    id,
+    kind,
+    subjectType,
+    reason,
+    repository,
+    title,
+    updatedAt,
+    unread: item.unread,
+    url,
+    releasePath: stringValue(item.releasePath),
+    owner: stringValue(item.owner),
+    repo: stringValue(item.repo),
+    number: numberValue(item.number)
+  };
 }
 
 function setCached<V>(cache: Map<string, V>, key: string, value: V): void {
