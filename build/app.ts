@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
+import { bundleIdentifier, productName } from '../src/product.ts';
 
 interface HelperBundle {
   bundle: string;
@@ -10,17 +12,17 @@ interface HelperBundle {
 }
 
 const repoRoot = join(import.meta.dirname, '..');
-const destination = join(homedir(), 'Applications', 'ImagePortal.app');
+const executableName = productName.replaceAll(' ', '');
+const destination = join(homedir(), 'Applications', `${executableName}.app`);
 const appResources = join(destination, 'Contents', 'Resources', 'app');
 const stampPath = join(appResources, '.electron-version');
-const bundleIdentifier = 'com.hyrious.imageportal';
-const sourceFiles = ['main.ts', 'preload.ts', 'index.html', 'renderer.ts', 'style.css', 'package.json', 'tsconfig.json'];
+const sourceEntries = ['main.ts', 'package.json', 'tsconfig.json', 'icon.png', 'src', 'tools'];
 const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign', 'osascript', 'sleep'];
 const helperBundles: HelperBundle[] = [
-  { bundle: 'Electron Helper.app', suffix: 'helper', name: 'Image Portal Helper' },
-  { bundle: 'Electron Helper (Renderer).app', suffix: 'helper.Renderer', name: 'Image Portal Helper (Renderer)' },
-  { bundle: 'Electron Helper (GPU).app', suffix: 'helper.GPU', name: 'Image Portal Helper (GPU)' },
-  { bundle: 'Electron Helper (Plugin).app', suffix: 'helper.Plugin', name: 'Image Portal Helper (Plugin)' }
+  { bundle: 'Electron Helper.app', suffix: 'helper', name: `${productName} Helper` },
+  { bundle: 'Electron Helper (Renderer).app', suffix: 'helper.Renderer', name: `${productName} Helper (Renderer)` },
+  { bundle: 'Electron Helper (GPU).app', suffix: 'helper.GPU', name: `${productName} Helper (GPU)` },
+  { bundle: 'Electron Helper (Plugin).app', suffix: 'helper.Plugin', name: `${productName} Helper (Plugin)` }
 ];
 
 if (process.platform != 'darwin') throw new Error('App packaging is supported only on macOS.');
@@ -30,7 +32,8 @@ const electronBinary = execFileSync(process.execPath, [join(import.meta.dirname,
 if (!electronBinary || !existsSync(electronBinary)) throw new Error('Electron installation did not produce a binary.');
 const electronApp = join(electronBinary, '..', '..', '..');
 const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(electronApp, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
-const stamp = `electron ${electronVersion}`;
+const iconHash = createHash('sha256').update(readFileSync(join(repoRoot, 'icon.png'))).digest('hex');
+const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
 
 // Rebuild the bundle only when it is missing or was built from another Electron
 // version. Either way the sources are refreshed and the app is re-signed; the
@@ -42,8 +45,9 @@ if (rebuilt) {
   console.log('Binary is current, syncing sources.');
 }
 
+rmSync(appResources, { recursive: true, force: true });
 mkdirSync(appResources, { recursive: true });
-for (const file of sourceFiles) cpSync(join(repoRoot, file), join(appResources, file));
+for (const entry of sourceEntries) cpSync(join(repoRoot, entry), join(appResources, entry), { recursive: true });
 writeFileSync(stampPath, stamp);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
@@ -52,7 +56,7 @@ quitRunningApp();
 exec('open', [destination]);
 
 function needsRebuild(): boolean {
-  if (!existsSync(join(destination, 'Contents', 'MacOS', 'ImagePortal'))) return true;
+  if (!existsSync(join(destination, 'Contents', 'MacOS', executableName))) return true;
   try {
     return readFileSync(stampPath, 'utf8').trim() != stamp;
   } catch {
@@ -64,12 +68,12 @@ function buildBundle() {
   rmSync(destination, { recursive: true, force: true });
   mkdirSync(dirname(destination), { recursive: true });
   exec('ditto', [electronApp, destination]);
-  exec('mv', [join(destination, 'Contents', 'MacOS', 'Electron'), join(destination, 'Contents', 'MacOS', 'ImagePortal')]);
+  exec('mv', [join(destination, 'Contents', 'MacOS', 'Electron'), join(destination, 'Contents', 'MacOS', executableName)]);
 
   const mainPlist = join(destination, 'Contents', 'Info.plist');
-  replacePlist(mainPlist, 'CFBundleExecutable', 'ImagePortal');
-  replacePlist(mainPlist, 'CFBundleName', 'Image Portal');
-  replacePlist(mainPlist, 'CFBundleDisplayName', 'Image Portal');
+  replacePlist(mainPlist, 'CFBundleExecutable', executableName);
+  replacePlist(mainPlist, 'CFBundleName', productName);
+  replacePlist(mainPlist, 'CFBundleDisplayName', productName);
   replacePlist(mainPlist, 'CFBundleIdentifier', bundleIdentifier);
   replacePlist(mainPlist, 'NSHumanReadableCopyright', 'Copyright © 2026 hyrious');
 
@@ -79,7 +83,7 @@ function buildBundle() {
     replacePlist(plist, 'CFBundleName', helper.name);
   }
 
-  const temporaryDirectory = mkdtempSync(join(tmpdir(), 'image-portal-icon-'));
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), 'lbq-icon-'));
   try {
     const iconset = join(temporaryDirectory, 'icon.iconset');
     mkdirSync(iconset);
@@ -103,7 +107,7 @@ function quitRunningApp() {
   const application = `application id "${bundleIdentifier}"`;
   if (execFileSync('osascript', ['-e', `${application} is running`], { encoding: 'utf8' }).trim() != 'true') return;
 
-  console.log('Closing the running Image Portal instance.');
+  console.log(`Closing the running ${productName} instance.`);
   exec('osascript', ['-e', `tell ${application} to quit`]);
   for (let attempt = 0; attempt < 50; attempt++) {
     if (execFileSync('osascript', ['-e', `${application} is running`], { encoding: 'utf8' }).trim() != 'true') return;

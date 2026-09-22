@@ -1,97 +1,46 @@
-# Image Portal — Design
+# LBQ Design
 
-A macOS desktop app that turns a dropped / pasted image into a clean clipboard
-image (PNG), so it can be pasted into apps that refuse filenames containing
-`/` (e.g. Telegram → QQ on macOS).
+LBQ is a single Electron runtime for trusted, built-in tools. Tools are structurally independent but are not security-sandboxed third-party extensions.
 
-Built with **zero runtime npm dependencies**: TypeScript everywhere, executed by
-Node's built-in type stripping, front end served over a local `app-file://`
-protocol, packaged into a self-contained `.app` by renaming and re-signing the
-stock Electron bundle.
+## Principles
 
-## Scope
+- A tool is added by creating `tools/<id>/plugin.ts`; no shared registry changes.
+- The host owns Electron lifecycle, Tray, windows, protocol routing, and IPC routing.
+- A tool owns its business services, RPC schema, renderer, and assets.
+- Root services live for the application. Plugin services and registrations live for one activation.
+- Closing a tool window disposes its activation. Reopening it creates a fresh scope.
+- TypeScript must satisfy `erasableSyntaxOnly`; no bundler or transform step exists.
 
-- Development: run directly with `electron .` (no build step).
-- Distribution: produce `~/Applications/ImagePortal.app`, ad-hoc signed,
-  self-contained, relocatable.
-- Lightweight update: re-sync only the TypeScript/HTML/CSS sources into the
-  already-built `.app`; never re-copy or re-sign the binary.
+## Plugin Contract
 
-Out of scope: Windows/Linux packaging, asar, auto-update, code signing with a
-real certificate.
+Each plugin exports `plugin: Plugin`. Its directory name must equal `plugin.id`. Metadata is loaded at startup to build the Tray menu, while `activate()` runs only when the tool is opened.
 
-## Hard facts this design relies on
+`PluginContext` contains:
 
-All verified on Electron `40.1.0` (bundles Node `24.11.1`) on macOS arm64.
+- `services`: a child `InstantiationService` that inherits host services.
+- `subscriptions`: the activation's `DisposableStore`.
+- `bindIpc<S>()`: a typed RPC server scoped to the plugin.
 
-1. **Native TS execution.** Electron's bundled Node runs `.ts` directly
-   (`erasableSyntaxOnly` semantics). `module.stripTypeScriptTypes` is a stable
-   function. No `--experimental-strip-types` flag needed.
-2. **`app-file://` is process-local.** `protocol.registerSchemesAsPrivileged`
-   and `protocol.handle` never touch `Info.plist` or LaunchServices. The
-   downloaded stock Electron has **no** `CFBundleURLTypes`. Therefore using a
-   custom protocol pollutes nothing; it is safe and identical in dev and
-   packaged builds.
-3. **`app.isPackaged` is decided solely by the main executable's basename.**
-   From `shell/browser/api/electron_api_app.cc`:
-   - main process: `base_name != "electron"`
-   - renderer process: `base_name != "electron helper (renderer)"`
-   - utility process: `base_name != "electron helper" && != "electron helper (plugin)"`
+An activation registers everything it owns in `subscriptions`. The store also owns the child service container, whose disposable services are released with the plugin.
 
-   So renaming `Contents/MacOS/Electron` to `ImagePortal` flips
-   `app.isPackaged` to `true`. **Helper executables must keep their stock
-   names** (`Electron Helper`, `Electron Helper (Renderer)`, `Electron Helper
-   (GPU)`, `Electron Helper (Plugin)`), or child-process detection breaks.
-4. **Stock Electron is ad-hoc / linker-signed**, `Sealed Resources=none`, no
-   team identifier. After renaming the binary and editing plists it is re-signed
-   with `codesign --force --deep --sign -`. No certificate required. Note that
-   our `--deep` signature **does seal resources** (unlike the stock bundle), so
-   the signature must be produced *after* the final source copy; any later
-   change to `Contents/Resources/app/` requires re-signing.
-5. **Native clipboard + image pipeline.** Main process has
-   `clipboard.writeImage(nativeImage)`, `nativeImage.createFromPath(path)`,
-   `nativeImage.resize(...)`, and `webUtils.getPathForFile(file)` in preload.
-6. **macOS `sips` decodes HEIC and writes PNG natively**, so there is no need
-   for `libheif-js`, esm.sh, or any CDN dependency.
+## IPC Boundary
 
-## Trust boundary / design decisions
+The preload exposes only `portal.invoke(method, input)` and `portal.getPathForFile(file)`. It never accepts a plugin identifier.
 
-- D1: Development uses `electron .`; `npm run app` builds to
-  `~/Applications/ImagePortal.app`, refreshes the sources, re-signs and launches
-  it. The binary bundle is only re-copied when missing or built from another
-  Electron version. (Both paths share the same `app-file://` loading logic.)
-- D2: `preload.ts` is stripped at runtime into
-  `app.getPath('userData')/preload.js`. No preload build step exists on disk.
-- D3: All image decoding / clipboard writing happens in the **main process**
-  through native APIs. The renderer is reduced to drag/drop, preview and
-  controls.
-- D4: No bundler, no electron-builder. Packaging uses `ditto`, `plutil`,
-  `codesign`, `sips`, `iconutil` — all system tools.
-- D5: Electron version is pinned to `40.1.0` in a single constant.
-- D6: The renderer receives PNG **bytes** (not a base64 data URL) for previews,
-  and only when the image was transformed. Base64 inflates by ~33% and forces a
-  string copy across IPC; bytes ride the structured clone as a `Uint8Array` and
-  become a Blob object URL.
-- D7: The window uses macOS `vibrancy: 'under-window'` with
-  `titleBarStyle: 'hiddenInset'` and a transparent renderer background. This
-  gives the frosted background and native traffic lights without a custom
-  titlebar implementation.
-- D8: UI feedback is drawn in-page (a toast region and a floating tool bar);
-  no CDN libraries, so the app stays offline-capable and dependency-free.
+`IpcRouter` records the plugin that owns each `WebContents`. For every invocation it derives the namespace from `event.sender`, then resolves the method within that plugin. Closing the window removes the association and disposing the activation removes its handlers.
 
-## Anti-goals / rejected alternatives
+RPC schemas provide compile-time request and response types. Main-process handlers still validate renderer input at runtime.
 
-- Pre-stripping renderer `.ts` to `.js` for packaging — unnecessary, because
-  the custom scheme is not a system-level concern (fact 2).
-- asar packaging — would seal resources and complicate the source-sync update
-  flow.
-- `libheif-js` / `esm.sh` for HEIC — superseded by native `sips` (fact 6).
-- CDN front-end libraries (React, shadcn, sonner, …) — a toast + toolbar is a few
-  dozen lines of CSS; a CDN dependency would break the offline, zero-dependency
-  premise and require loosening the CSP (D8).
+## Resources
 
-## See also
+The process-local `app-file://<plugin-id>/<path>` protocol serves only files below that plugin's directory. TypeScript renderer modules are stripped when requested. Files outside `tools/<plugin-id>/` are not addressable through the protocol; image previews travel as PNG bytes over IPC.
 
-- `docs/FILES.md` — file-by-file responsibilities.
-- `docs/FLOWS.md` — dev, package, sync, and runtime data flows.
-- `docs/TASKS.md` — the ordered implementation checklist for the executor.
+## Discovery and Packaging
+
+At startup `PluginService` scans directories immediately below `tools/` and imports each `plugin.ts`. Electron 40.1.0's bundled Node runtime supports direct dynamic imports of these TypeScript files.
+
+The packaging script copies `main.ts`, `src/`, and `tools/` recursively into `LBQ.app`. Consequently, adding or deleting a tool does not require updating a source-file list.
+
+## Platform Scope
+
+The host lifecycle and Tray model are cross-platform. Packaging currently targets macOS, and Image Portal uses macOS `sips` for HEIC conversion. Other supported image formats use Electron's `nativeImage` on every platform.

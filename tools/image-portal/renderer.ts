@@ -1,21 +1,9 @@
-interface ElectronBridge {
-  webUtils: { getPathForFile(file: File): string };
-  ipcRenderer: { invoke(channel: string, ...args: unknown[]): Promise<unknown> };
-  process: { platform: NodeJS.Platform; arch: string };
-}
-
-interface ImageSize {
-  width: number;
-  height: number;
-}
-
-interface ProcessedImage extends ImageSize {
-  preview?: Uint8Array;
-}
+import type { IpcBridge, RpcRequest, RpcResponse } from '../../src/platform/ipc/common/ipc.ts';
+import type { ImagePortalRpc, ProcessedImage } from './common.ts';
 
 declare global {
   interface Window {
-    electron: ElectronBridge;
+    portal: IpcBridge;
   }
 }
 
@@ -28,7 +16,7 @@ const resizeButton = getElement<HTMLButtonElement>('resize');
 const closeButton = getElement<HTMLButtonElement>('close');
 const toastRegion = getElement<HTMLDivElement>('toasts');
 let currentPath = '';
-let originalSize: ImageSize | undefined;
+let originalSize: ProcessedImage | undefined;
 let previewURL = '';
 
 dropSurface.ondragover = previewPanel.ondragover = event => {
@@ -50,14 +38,14 @@ scaleInput.onkeydown = event => {
 
 async function load(file?: File) {
   if (!file) return;
-  const path = window.electron.webUtils.getPathForFile(file);
+  const path = window.portal.getPathForFile(file);
   if (!path) return showToast('此项目没有本地文件路径。', 'error');
 
   try {
-    const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', { path }));
+    const result = await invoke('processImage', { path });
     currentPath = path;
     originalSize = result;
-    showPreview(result, path);
+    showPreview(result);
     scaleInput.value = '';
     showToast('已复制到剪贴板');
   } catch (error) {
@@ -76,19 +64,17 @@ async function resize() {
 
   try {
     const request = value < 20 ? { path: currentPath, scale: value } : { path: currentPath, width };
-    const result = assertProcessedImage(await window.electron.ipcRenderer.invoke('process-image', request));
-    showPreview(result, currentPath);
+    const result = await invoke('processImage', request);
+    showPreview(result);
     showToast('已复制到剪贴板');
   } catch (error) {
     reportError(error);
   }
 }
 
-function showPreview(result: ProcessedImage, path: string) {
+function showPreview(result: ProcessedImage) {
   if (previewURL) URL.revokeObjectURL(previewURL);
-  previewURL = result.preview
-    ? URL.createObjectURL(new Blob([result.preview as BlobPart], { type: 'image/png' }))
-    : `app-file://app${path.split('/').map(encodeURIComponent).join('/')}`;
+  previewURL = URL.createObjectURL(new Blob([result.preview as BlobPart], { type: 'image/png' }));
   preview.src = previewURL;
   dimension.textContent = `${result.width} × ${result.height}`;
   previewPanel.classList.remove('hidden');
@@ -110,13 +96,11 @@ function reportError(error: unknown) {
   showToast(error instanceof Error ? error.message : String(error), 'error');
 }
 
-function assertProcessedImage(value: unknown): ProcessedImage {
-  if (!value || typeof value != 'object' || !('width' in value) || !('height' in value)
-      || typeof value.width != 'number' || typeof value.height != 'number') {
-    throw new Error('图片处理结果无效。');
-  }
-  const preview = 'preview' in value && value.preview instanceof Uint8Array ? value.preview : undefined;
-  return { width: value.width, height: value.height, preview };
+async function invoke<K extends Extract<keyof ImagePortalRpc, string>>(
+  method: K,
+  input: RpcRequest<ImagePortalRpc[K]>
+): Promise<RpcResponse<ImagePortalRpc[K]>> {
+  return await window.portal.invoke(method, input) as RpcResponse<ImagePortalRpc[K]>;
 }
 
 function getElement<T extends HTMLElement>(id: string): T {
