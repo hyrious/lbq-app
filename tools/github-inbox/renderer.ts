@@ -232,6 +232,7 @@ class GitHubClient {
     return {
       id: stringValue(row?.id) ?? '',
       kind,
+      subjectType: rawKind ?? '',
       reason: stringValue(row?.reason) ?? '',
       repository: fullName,
       title: stringValue(subject?.title) ?? '',
@@ -320,12 +321,14 @@ const clientPromise = GitHubClient.create();
 const markedUrl = 'https://esm.sh/marked@15.0.7';
 const domPurifyUrl = 'https://esm.sh/dompurify@3.2.6';
 const pierreDiffsUrl = 'https://esm.sh/@pierre/diffs@1.3.2';
+const iconifyUrl = 'https://esm.sh/iconify-icon@3.0.2';
 const splitDiffMedia = window.matchMedia('(min-width: 1200px)');
 const markdownModules = Promise.all([
   import(markedUrl) as Promise<MarkedModule>,
   import(domPurifyUrl) as Promise<DOMPurifyModule>
 ]);
 const refreshQueue = new RefreshQueue(refresh);
+void import(iconifyUrl);
 
 selectAllInput.onchange = () => {
   checkedIds.clear();
@@ -404,7 +407,7 @@ function createNotificationRow(): HTMLDivElement {
     element('span', 'notification-repo', ''),
     element('strong', 'notification-title', '')
   );
-  row.append(element('span', 'selection-placeholder', ''), button);
+  row.append(element('span', 'selection-placeholder', ''), createNotificationIcon(), button);
   return row;
 }
 
@@ -433,16 +436,51 @@ function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): voi
   }
 
   const button = row.lastElementChild as HTMLButtonElement;
+  const icon = row.children[1] as HTMLElement;
   const repository = button.firstElementChild as HTMLSpanElement;
   const title = button.lastElementChild as HTMLElement;
   const subject = item.number && (item.kind == 'PullRequest' || item.kind == 'Issue')
-    ? ` ${item.kind == 'PullRequest' ? 'PR' : 'Issue'} #${item.number}`
+    ? ` #${item.number}`
     : '';
+  updateNotificationIcon(icon, item);
   repository.textContent = `${item.repository}${subject}`;
   title.textContent = item.title;
   button.disabled = opening;
   button.setAttribute('aria-label', opening ? `正在打开 ${item.title}` : item.title);
   button.onclick = event => void select(item, event.metaKey || event.ctrlKey);
+}
+
+function createNotificationIcon(): HTMLElement {
+  const icon = document.createElement('iconify-icon');
+  icon.className = 'notification-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  return icon;
+}
+
+function updateNotificationIcon(icon: HTMLElement, item: NotificationItem): void {
+  let name = 'bell-16';
+  let tone = 'muted';
+  if (item.subjectType == 'Issue') {
+    name = 'issue-opened-16';
+    tone = 'issue';
+  } else if (item.subjectType == 'PullRequest') {
+    name = 'git-merge-16';
+    tone = 'pull-request';
+  } else if (item.subjectType == 'Release') {
+    name = 'tag-16';
+  } else if (item.subjectType == 'Discussion') {
+    name = 'comment-discussion-16';
+  } else if (item.subjectType == 'Commit') {
+    name = 'git-commit-16';
+  } else if (item.subjectType == 'RepositoryVulnerabilityAlert' || item.subjectType == 'SecurityAdvisory') {
+    name = 'shield-16';
+  } else if (item.subjectType == 'CheckSuite') {
+    name = 'check-circle-16';
+  } else if (item.subjectType == 'RepositoryInvitation') {
+    name = 'repo-16';
+  }
+  icon.className = `notification-icon ${tone}`;
+  icon.setAttribute('icon', `octicon:${name}`);
 }
 
 function renderSelectionBar() {

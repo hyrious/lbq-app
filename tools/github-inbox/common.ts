@@ -5,6 +5,7 @@ export type SubjectKind = 'Issue' | 'PullRequest' | 'Other';
 export interface NotificationItem {
   id: string;
   kind: SubjectKind;
+  subjectType: string;
   reason: string;
   repository: string;
   title: string;

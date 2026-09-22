@@ -57,13 +57,21 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 .notifications { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 8px; }
 .notification {
   display: grid;
-  grid-template-columns: 15px minmax(0, 1fr);
+  grid-template-columns: 15px 16px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   padding: 7px 8px;
   border-radius: 8px;
   background: transparent;
 }
+.notification-icon {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, CanvasText 48%, transparent);
+  font-size: 16px;
+}
+.notification-icon.issue { color: light-dark(#1a7f37, #3fb950); }
+.notification-icon.pull-request { color: light-dark(#8250df, #a371f7); }
 .notification:hover, .notification.current { background: color-mix(in srgb, CanvasText 7%, transparent); }
 .notification:not(.unread) .notification-content { opacity: .52; }
 .notification:hover .notification-content { opacity: 1; }
