@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>GitHub Inbox</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@hyrious/github-markdown-css@0.2.4/github-markdown.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="titlebar">
+    <span>GitHub Inbox</span>
+  </header>
+  <main>
+    <section id="inbox" class="inbox">
+      <div id="selection-bar" class="selection-bar hidden">
+        <label class="select-all"><input id="select-all" type="checkbox"><span id="selection-label">全选</span></label>
+        <button id="mark-read" class="mark-read hidden" type="button" title="标记为已读">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2Zm2-.5a.5.5 0 0 0-.5.5v.217l6.5 4.5 6.5-4.5V4a.5.5 0 0 0-.5-.5Zm12.5 2.542-6.073 4.204a.75.75 0 0 1-.854 0L1.5 6.042V12a.5.5 0 0 0 .5.5h12a.5.5 0 0 0 .5-.5Z"/></svg>
+          标记为已读
+        </button>
+      </div>
+      <div id="inbox-status" class="status">正在加载…</div>
+      <div id="notifications" class="notifications" role="list"></div>
+    </section>
+    <div id="detail-scrim" class="detail-scrim" aria-hidden="true"></div>
+    <section id="detail" class="detail" aria-hidden="true"></section>
+    <div id="diff-scrim" class="diff-scrim" aria-hidden="true"></div>
+    <section id="diff-panel" class="diff-panel" aria-hidden="true"></section>
+  </main>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <script type="module" src="renderer.ts"></script>
+</body>
+</html>

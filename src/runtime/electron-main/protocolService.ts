@@ -7,9 +7,11 @@ import type { IDisposable } from '../../base/common/lifecycle.ts';
 
 export class ProtocolService implements IDisposable {
   private readonly toolsRoot: string;
+  private readonly development: boolean;
 
-  constructor(toolsRoot: string) {
+  constructor(toolsRoot: string, development: boolean) {
     this.toolsRoot = toolsRoot;
+    this.development = development;
   }
 
   register(): void {
@@ -32,13 +34,21 @@ export class ProtocolService implements IDisposable {
     if (file.endsWith('.ts')) {
       try {
         const source = await readFile(file, 'utf8');
-        return new Response(stripTypeScriptTypes(source), {
+        return this.createResponse(stripTypeScriptTypes(source), {
           headers: { 'content-type': 'text/javascript; charset=utf-8' }
         });
       } catch {
         return new Response('File not found.', { status: 404 });
       }
     }
-    return net.fetch(pathToFileURL(file).href, { method: request.method, headers: request.headers });
+    const response = await net.fetch(pathToFileURL(file).href, { method: request.method, headers: request.headers });
+    return this.development ? this.createResponse(response.body, response) : response;
+  }
+
+  private createResponse(body: BodyInit | null, init?: ResponseInit): Response {
+    if (!this.development) return new Response(body, init);
+    const headers = new Headers(init?.headers);
+    headers.set('cache-control', 'no-store');
+    return new Response(body, { ...init, headers });
   }
 }

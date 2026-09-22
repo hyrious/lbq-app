@@ -5,7 +5,7 @@ import { DisposableStore, type IDisposable } from '../../base/common/lifecycle.t
 import { Emitter, type Event } from '../../base/common/event.ts';
 import { isFunction, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
 import type { InstantiationService } from '../../platform/instantiation/common/instantiation.ts';
-import type { IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
+import type { IpcHandlers, IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
 import type { Plugin, PluginContext } from './plugin.ts';
 import type { PluginWindow, WindowService } from './windowService.ts';
 
@@ -98,7 +98,7 @@ export class PluginService implements IDisposable {
     const context: PluginContext = {
       services,
       subscriptions: store,
-      bindIpc: <S extends object>() => this.ipcRouter.bind<S>(record.plugin.id)
+      bindIpc: <S extends object>(handlers: IpcHandlers<S>) => store.add(this.ipcRouter.bind<S>(record.plugin.id, handlers))
     };
     record.activation = Promise.resolve(record.plugin.activate(context)).then(() => ({ dispose: () => store.dispose() }));
     record.activation.catch(() => {

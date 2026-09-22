@@ -1,16 +1,15 @@
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from 'electron';
-import { toDisposable, type IDisposable } from '../../../base/common/lifecycle.ts';
+import { DisposableStore, toDisposable, type IDisposable } from '../../../base/common/lifecycle.ts';
 import { toNonEmptyString } from '../../../base/common/types.ts';
 import type { RpcRequest, RpcResponse } from '../common/ipc.ts';
 
 type Handler = (input: unknown) => unknown | Promise<unknown>;
 
-export interface TypedIpcServer<S extends object> {
-  handle<K extends Extract<keyof S, string>>(
-    method: K,
-    handler: (input: RpcRequest<S[K]>) => RpcResponse<S[K]> | Promise<RpcResponse<S[K]>>
-  ): IDisposable;
-}
+export type IpcHandlers<S extends object> = {
+  [K in Extract<keyof S, string>]: (
+    input: RpcRequest<S[K]>
+  ) => RpcResponse<S[K]> | Promise<RpcResponse<S[K]>>;
+};
 
 export class IpcRouter implements IDisposable {
   private readonly pluginsByWebContents = new Map<number, string>();
@@ -20,10 +19,17 @@ export class IpcRouter implements IDisposable {
     ipcMain.handle('runtime:invoke', (event, method, input) => this.invoke(event, method, input));
   }
 
-  bind<S extends object>(pluginId: string): TypedIpcServer<S> {
-    return {
-      handle: (method, handler) => this.registerHandler(pluginId, method, handler as Handler)
-    };
+  bind<S extends object>(pluginId: string, handlers: IpcHandlers<S>): IDisposable {
+    const store = new DisposableStore();
+    try {
+      for (const [method, handler] of Object.entries(handlers) as [string, Handler][]) {
+        store.add(this.registerHandler(pluginId, method, handler));
+      }
+      return store;
+    } catch (error) {
+      store.dispose();
+      throw error;
+    }
   }
 
   registerWebContents(pluginId: string, webContents: WebContents): IDisposable {

@@ -1,6 +1,6 @@
 import type { DisposableStore } from '../../base/common/lifecycle.ts';
 import type { InstantiationService } from '../../platform/instantiation/common/instantiation.ts';
-import type { TypedIpcServer } from '../../platform/ipc/electron-main/ipcRouter.ts';
+import type { IpcHandlers } from '../../platform/ipc/electron-main/ipcRouter.ts';
 
 export interface PluginWindowOptions {
   readonly entry: string;
@@ -15,7 +15,7 @@ export interface PluginWindowOptions {
 export interface PluginContext {
   readonly services: InstantiationService;
   readonly subscriptions: DisposableStore;
-  bindIpc<S extends object>(): TypedIpcServer<S>;
+  bindIpc<S extends object>(handlers: IpcHandlers<S>): void;
 }
 
 export interface Plugin {

@@ -18,7 +18,7 @@ let pluginService: PluginService | undefined;
 register('data:text/javascript,export async function resolve(r,t,n){if(r==="fs"){return{format:"builtin",shortCircuit:true,url:"node:original-fs"}}return n(r,t)}', import.meta.url);
 protocol.registerSchemesAsPrivileged([{
   scheme: 'app-file',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, codeCache: true }
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, codeCache: app.isPackaged }
 }]);
 
 export function runApplication(): void {
@@ -50,7 +50,7 @@ async function start(): Promise<void> {
   const preloadPath = join(app.getPath('userData'), 'preload.js');
   await writeFile(preloadPath, preloadSource);
 
-  const protocolService = disposables.add(new ProtocolService(toolsRoot));
+  const protocolService = disposables.add(new ProtocolService(toolsRoot, !app.isPackaged));
   protocolService.register();
   const ipcRouter = disposables.add(new IpcRouter());
   const rootServices = disposables.add(new InstantiationService());

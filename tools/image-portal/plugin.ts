@@ -69,8 +69,8 @@ export const plugin: Plugin = {
   },
   activate(context) {
     context.services.register(IImageService, ImageService);
-    context.subscriptions.add(context.bindIpc<ImagePortalRpc>().handle('processImage', input => {
-      return context.services.get(IImageService).process(input);
-    }));
+    context.bindIpc<ImagePortalRpc>({
+      processImage: input => context.services.get(IImageService).process(input)
+    });
   }
 };

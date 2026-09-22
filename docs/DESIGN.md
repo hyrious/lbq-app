@@ -19,7 +19,7 @@ Each plugin exports `plugin: Plugin`. Its directory name must equal `plugin.id`.
 
 - `services`: a child `InstantiationService` that inherits host services.
 - `subscriptions`: the activation's `DisposableStore`.
-- `bindIpc<S>()`: a typed RPC server scoped to the plugin.
+- `bindIpc<S>(handlers)`: typed RPC handlers scoped to the plugin and disposed with its activation.
 
 An activation registers everything it owns in `subscriptions`. The store also owns the child service container, whose disposable services are released with the plugin.
 

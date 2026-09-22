@@ -47,6 +47,6 @@ The renderer cannot supply or override the plugin namespace.
 
 ## Development and Build
 
-`npm run dev` launches the repository through the pinned Electron runtime. Renderer TypeScript is stripped by the local protocol when loaded.
+`npm run dev` launches the repository through the pinned Electron runtime. Renderer TypeScript is stripped by the local protocol when loaded, and renderer responses disable caching so HTML, CSS, and TypeScript changes take effect after a page reload.
 
 `npm run app` creates or refreshes `~/Applications/LBQ.app`, copies `src/` and `tools/` recursively, signs the result, refreshes LaunchServices, closes an existing LBQ process, and launches the new bundle.
