@@ -20,11 +20,16 @@ export interface NotificationItem {
 }
 
 export interface Comment {
+  kind: 'comment' | 'review' | 'review-comment';
   author: string;
   avatarUrl: string;
   body: string;
   createdAt: string;
   url: string;
+  state?: string;
+  path?: string;
+  startLine?: number;
+  line?: number;
 }
 
 export interface SubjectDetail {

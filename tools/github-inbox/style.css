@@ -310,6 +310,13 @@ h1 { grid-column: 1 / 1; grid-row: 1; margin: 5px 0; display: flex; align-items:
 .avatar { position: absolute; top: 0; left: 0; width: 24px; height: 24px; border-radius: 50%; }
 .byline { min-height: 24px; display: flex; align-items: baseline; gap: 7px; font-size: 12px; }
 .byline time { color: color-mix(in srgb, CanvasText 52%, transparent); }
+.comment-context {
+  overflow: hidden;
+  color: color-mix(in srgb, CanvasText 60%, transparent);
+  font: 11px/1.4 ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .body { margin-top: 7px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .body.markdown-body { color: inherit; background: transparent; font-size: 12px; }
 .markdown-body img { height: auto; }
@@ -333,6 +340,23 @@ h1 { grid-column: 1 / 1; grid-row: 1; margin: 5px 0; display: flex; align-items:
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
+.body.markdown-body code.language-diff > span { display: inline-block; width: 100%; }
+.body.markdown-body code.language-diff > .diff-addition {
+  color: light-dark(#116329, #aff5b4);
+  background: light-dark(#dafbe1, rgba(46, 160, 67, .2));
+}
+.body.markdown-body code.language-diff > .diff-deletion {
+  color: light-dark(#82071e, #ffdcd7);
+  background: light-dark(#ffebe9, rgba(248, 81, 73, .2));
+}
+.body.markdown-body code.language-diff > .diff-range { color: light-dark(#8250df, #d2a8ff); }
+.mermaid-diagram {
+  --mermaid-bg: light-dark(#fff, #0d1117);
+  --mermaid-fg: light-dark(#24292f, #f0f6fc);
+  margin: 12px 0;
+  overflow: auto;
+}
+.mermaid-diagram svg { display: block; max-width: 100%; height: auto; margin: auto; }
 .body.markdown-body code:not(pre code) { background: color-mix(in srgb, CanvasText 8%, transparent); }
 .body.markdown-body kbd,
 .body.markdown-body mark {
@@ -346,6 +370,7 @@ h1 { grid-column: 1 / 1; grid-row: 1; margin: 5px 0; display: flex; align-items:
 }
 .body.markdown-body hr { background: color-mix(in srgb, currentColor 14%, transparent); }
 .comments-heading { margin: 18px 0 0; font-size: 13px; }
+.comments-loading { margin: 16px 0 0 34px; color: color-mix(in srgb, CanvasText 52%, transparent); font-size: 11px; }
 .toasts { position: fixed; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .toast {
   max-width: 340px;

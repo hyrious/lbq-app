@@ -15,6 +15,16 @@ interface DOMPurifyModule {
   default: { sanitize(html: string): string };
 }
 
+interface MermaidRenderOptions {
+  bg: string;
+  fg: string;
+  transparent: boolean;
+}
+
+interface BeautifulMermaidModule {
+  renderMermaidSVG(text: string, options: MermaidRenderOptions): string;
+}
+
 interface FileDiffMetadata {}
 
 interface ParsedPatch {
@@ -27,6 +37,11 @@ interface SubjectStatusInput {
   stateReason?: unknown;
   draft?: unknown;
   merged?: unknown;
+}
+
+interface CommentSource {
+  path: string;
+  kind: Comment['kind'];
 }
 
 interface FileDiffOptions {
@@ -86,6 +101,8 @@ class GitHubClient {
   private readonly token: string;
   private readonly detailCache = new Map<string, SubjectDetail>();
   private readonly detailRequests = new Map<string, Promise<SubjectDetail>>();
+  private readonly commentRequests = new WeakMap<SubjectDetail, Promise<void>>();
+  private readonly commentsLoaded = new WeakSet<SubjectDetail>();
   private readonly diffCache = new Map<string, string>();
   private readonly diffRequests = new Map<string, Promise<string>>();
 
@@ -132,6 +149,23 @@ class GitHubClient {
     return this.detailCache.get(this.notificationKey(item));
   }
 
+  hasLoadedComments(detail: SubjectDetail): boolean {
+    return this.commentsLoaded.has(detail);
+  }
+
+  async loadComments(item: NotificationItem, detail: SubjectDetail, onUpdate: () => void): Promise<void> {
+    if (this.commentsLoaded.has(detail)) return;
+    let request = this.commentRequests.get(detail);
+    if (!request) {
+      detail.comments.length = 0;
+      request = this.fetchComments(item, detail, onUpdate).then(() => {
+        this.commentsLoaded.add(detail);
+      }).finally(() => this.commentRequests.delete(detail));
+      this.commentRequests.set(detail, request);
+    }
+    await request;
+  }
+
   async getStatus(item: NotificationItem): Promise<SubjectStatus> {
     const detail = this.detailCache.get(this.notificationKey(item));
     if (detail) return subjectStatus(detail.kind, detail);
@@ -155,11 +189,30 @@ class GitHubClient {
     }
     const base = `/repos/${encodeURIComponent(item.owner)}/${encodeURIComponent(item.repo)}`;
     const path = item.kind == 'PullRequest' ? `${base}/pulls/${item.number}` : `${base}/issues/${item.number}`;
-    const [detail, comments] = await Promise.all([
-      this.request(path),
-      this.request(`${base}/issues/${item.number}/comments?per_page=100`)
-    ]);
-    return this.toDetail(item.kind, item.repository, item.number, detail, comments);
+    const detail = await this.request(path);
+    return this.toDetail(item.kind, item.repository, item.number, detail);
+  }
+
+  private async fetchComments(item: NotificationItem, detail: SubjectDetail, onUpdate: () => void): Promise<void> {
+    if (!item.owner || !item.repo || !item.number) throw new Error('通知内容无效。');
+    const base = `/repos/${encodeURIComponent(item.owner)}/${encodeURIComponent(item.repo)}`;
+    const sources: CommentSource[] = [
+      { path: `${base}/issues/${item.number}/comments`, kind: 'comment' }
+    ];
+    if (item.kind == 'PullRequest') {
+      sources.push(
+        { path: `${base}/pulls/${item.number}/reviews`, kind: 'review' },
+        { path: `${base}/pulls/${item.number}/comments`, kind: 'review-comment' }
+      );
+    }
+    const results = await Promise.allSettled(sources.map(async source => {
+      const values = await this.requestAll(source.path);
+      detail.comments.push(...values.map(value => this.toComment(value, source.kind)));
+      detail.comments.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      onUpdate();
+    }));
+    const failure = results.find(result => result.status == 'rejected');
+    if (failure?.status == 'rejected') throw failure.reason;
   }
 
   async getDiff(detail: SubjectDetail): Promise<string> {
@@ -263,6 +316,16 @@ class GitHubClient {
     return value;
   }
 
+  private async requestAll(path: string): Promise<unknown[]> {
+    const values: unknown[] = [];
+    for (let page = 1; ; page++) {
+      const value = await this.request(`${path}?per_page=100&page=${page}`);
+      if (!Array.isArray(value)) throw new Error('GitHub API：分页响应格式无效。');
+      values.push(...value);
+      if (value.length < 100) return values;
+    }
+  }
+
   private toNotification(value: unknown): NotificationItem {
     const row = plainObject(value);
     const subject = plainObject(row?.subject);
@@ -294,12 +357,11 @@ class GitHubClient {
   }
 
   private toDetail(kind: 'Issue' | 'PullRequest', repository: string, number: number,
-    detailValue: unknown, commentsValue: unknown): SubjectDetail {
+    detailValue: unknown): SubjectDetail {
     const detail = plainObject(detailValue) ?? {};
     const user = plainObject(detail?.user);
     const head = plainObject(detail?.head);
     const base = plainObject(detail?.base);
-    const comments = Array.isArray(commentsValue) ? commentsValue.map(value => this.toComment(value)) : [];
     const labels = Array.isArray(detail?.labels)
       ? detail.labels.map(value => stringValue(plainObject(value)?.name)).filter((value): value is string => !!value)
       : [];
@@ -317,7 +379,7 @@ class GitHubClient {
       updatedAt: stringValue(detail?.updated_at) ?? '',
       url: githubUrl(detail?.html_url),
       labels,
-      comments,
+      comments: [],
       draft: kind == 'PullRequest' ? detail?.draft == true : undefined,
       merged: kind == 'PullRequest' ? detail?.merged == true : undefined,
       headSha: kind == 'PullRequest' ? stringValue(head?.sha) : undefined,
@@ -329,15 +391,20 @@ class GitHubClient {
     };
   }
 
-  private toComment(value: unknown): Comment {
+  private toComment(value: unknown, kind: Comment['kind']): Comment {
     const comment = plainObject(value);
     const user = plainObject(comment?.user);
     return {
+      kind,
       author: stringValue(user?.login) ?? '',
       avatarUrl: stringValue(user?.avatar_url) ?? '',
       body: stringValue(comment?.body) ?? '',
-      createdAt: stringValue(comment?.created_at) ?? '',
-      url: githubUrl(comment?.html_url)
+      createdAt: stringValue(kind == 'review' ? comment?.submitted_at : comment?.created_at) ?? '',
+      url: githubUrl(comment?.html_url),
+      state: kind == 'review' ? stringValue(comment?.state) : undefined,
+      path: kind == 'review-comment' ? stringValue(comment?.path) : undefined,
+      startLine: kind == 'review-comment' ? numberValue(comment?.start_line) : undefined,
+      line: kind == 'review-comment' ? numberValue(comment?.line) ?? numberValue(comment?.original_line) : undefined
     };
   }
 }
@@ -361,11 +428,13 @@ const completingIds = new Set<string>();
 let diffInstances: FileDiffInstance[] = [];
 let diffRequest = 0;
 let pierreDiffsModule: PierreDiffsModule | undefined;
+let beautifulMermaidModule: Promise<BeautifulMermaidModule> | undefined;
 const checkedIds = new Set<string>();
 const clientPromise = GitHubClient.create();
 const markedUrl = 'https://esm.sh/marked@15.0.7';
 const domPurifyUrl = 'https://esm.sh/dompurify@3.2.6';
 const pierreDiffsUrl = 'https://esm.sh/@pierre/diffs@1.3.2';
+const beautifulMermaidUrl = 'https://esm.sh/beautiful-mermaid@1.1.3?bundle&target=es2022';
 const iconifyUrl = 'https://esm.sh/iconify-icon@3.0.2';
 const splitDiffMedia = window.matchMedia('(min-width: 1200px)');
 const markdownModules = Promise.all([
@@ -682,10 +751,14 @@ async function select(item: NotificationItem, external: boolean) {
     const client = await clientPromise;
     if (selectedId != item.id) return;
     if (item.unread) {
-      await client.markRead([item.id]);
       item.unread = false;
-      await client.saveInbox(items);
       renderInbox();
+      void client.markRead([item.id]).catch(error => {
+        item.unread = true;
+        renderInbox();
+        showToast(errorMessage(error), 'error');
+        void client.saveInbox(items).catch(saveError => showToast(errorMessage(saveError), 'error'));
+      });
     }
     let detail = client.getCachedDetail(item);
     if (!detail) {
@@ -696,7 +769,16 @@ async function select(item: NotificationItem, external: boolean) {
     await client.saveInbox(items);
     renderInbox();
     if (selectedId != item.id) return;
-    renderDetail(detail);
+    renderDetail(detail, !client.hasLoadedComments(detail));
+    void client.loadComments(item, detail, () => {
+      if (selectedId == item.id) updateComments(detail, true);
+    }).then(() => {
+      if (selectedId == item.id) updateComments(detail, false);
+    }).catch(error => {
+      if (selectedId != item.id) return;
+      updateComments(detail, false);
+      showToast(errorMessage(error), 'error');
+    });
   } catch (error) {
     if (selectedId != item.id) return;
     detailPanel.replaceChildren(element('div', 'loading error', errorMessage(error)));
@@ -725,7 +807,7 @@ function sortInbox(): void {
   items.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
-function renderDetail(detail: SubjectDetail) {
+function renderDetail(detail: SubjectDetail, loadingComments = false) {
   const article = document.createElement('article');
   const header = document.createElement('header');
   header.className = 'subject-header';
@@ -761,12 +843,41 @@ function renderDetail(detail: SubjectDetail) {
   }
   if (detail.kind == 'PullRequest') article.append(renderPullSummary(detail));
   article.append(renderPost(detail.author, detail.avatarUrl, detail.createdAt, detail.body || '（无正文）', detail.url));
-  if (detail.comments.length) {
-    article.append(element('h2', 'comments-heading', `${detail.comments.length} 条评论`));
-    for (const comment of detail.comments) article.append(renderComment(comment));
-  }
+  const comments = document.createElement('section');
+  comments.className = 'comments';
+  article.append(comments);
   detailPanel.replaceChildren(article);
+  updateComments(detail, loadingComments);
   detailPanel.scrollTop = 0;
+}
+
+function updateComments(detail: SubjectDetail, loading: boolean): void {
+  const section = detailPanel.querySelector<HTMLElement>('.comments');
+  if (!section) return;
+  let heading = section.querySelector<HTMLHeadingElement>('.comments-heading');
+  let list = section.querySelector<HTMLDivElement>('.comment-list');
+  if (!heading) {
+    heading = element('h2', 'comments-heading', '');
+    section.append(heading);
+  }
+  if (!list) {
+    list = document.createElement('div');
+    list.className = 'comment-list';
+    section.append(list);
+  }
+  heading.textContent = detail.kind == 'PullRequest'
+    ? `${detail.comments.length} 条评论与审查`
+    : `${detail.comments.length} 条评论`;
+  heading.hidden = !detail.comments.length;
+  const nodes = new Map([...list.children].map(node => [(node as HTMLElement).dataset.commentUrl, node]));
+  const fragment = document.createDocumentFragment();
+  for (const comment of detail.comments) {
+    const post = nodes.get(comment.url) ?? renderComment(comment);
+    fragment.append(post);
+  }
+  list.replaceChildren(fragment);
+  section.querySelector('.comments-loading')?.remove();
+  if (loading) section.append(element('div', 'comments-loading', '正在加载评论…'));
 }
 
 function renderPullSummary(detail: SubjectDetail): HTMLElement {
@@ -867,14 +978,35 @@ function stripOwner(label: string): string {
 }
 
 function renderComment(comment: Comment): HTMLElement {
-  const post = renderPost(comment.author, comment.avatarUrl, comment.createdAt, comment.body, comment.url);
+  const post = renderPost(comment.author, comment.avatarUrl, comment.createdAt,
+    comment.body || '（无评论内容）', comment.url, commentContext(comment));
+  post.dataset.commentUrl = comment.url;
   post.onclick = event => {
     if (event.metaKey || event.ctrlKey) void openUrl(comment.url);
   };
   return post;
 }
 
-function renderPost(author: string, avatarUrl: string, createdAt: string, body: string, baseUrl: string): HTMLElement {
+function commentContext(comment: Comment): string | undefined {
+  if (comment.kind == 'review') return reviewStateText(comment.state);
+  if (!comment.path) return undefined;
+  if (!comment.line) return comment.path;
+  const lines = comment.startLine && comment.startLine != comment.line
+    ? `${comment.startLine}–${comment.line}`
+    : `${comment.line}`;
+  return `${comment.path}:${lines}`;
+}
+
+function reviewStateText(state: string | undefined): string {
+  if (state == 'APPROVED') return '已批准';
+  if (state == 'CHANGES_REQUESTED') return '请求修改';
+  if (state == 'DISMISSED') return '已驳回';
+  if (state == 'PENDING') return '待提交';
+  return '审查评论';
+}
+
+function renderPost(author: string, avatarUrl: string, createdAt: string, body: string, baseUrl: string,
+  context?: string): HTMLElement {
   const post = document.createElement('section');
   post.className = 'post';
   const avatar = document.createElement('img');
@@ -891,7 +1023,9 @@ function renderPost(author: string, avatarUrl: string, createdAt: string, body: 
     event.preventDefault();
     void openUrl(new URL(link.getAttribute('href') ?? '', baseUrl).href);
   };
-  post.append(avatar, byline, content);
+  post.append(avatar, byline);
+  if (context) post.append(element('div', 'comment-context', context));
+  post.append(content);
   void renderMarkdown(content, body, baseUrl);
   return post;
 }
@@ -906,8 +1040,49 @@ async function renderMarkdown(container: HTMLElement, markdown: string, baseUrl:
       const value = element.getAttribute(attribute);
       if (value) element.setAttribute(attribute, new URL(value, baseUrl).href);
     }
+    renderDiffBlocks(container);
+    await renderMermaidBlocks(container, domPurify.default);
   } catch (error) {
     console.error('Markdown rendering failed.', error);
+  }
+}
+
+function renderDiffBlocks(container: HTMLElement): void {
+  for (const code of container.querySelectorAll<HTMLElement>('code.language-diff')) {
+    const lines = (code.textContent ?? '').split('\n');
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      const className = line.startsWith('+') && !line.startsWith('+++') ? 'diff-addition'
+        : line.startsWith('-') && !line.startsWith('---') ? 'diff-deletion'
+          : line.startsWith('@@') ? 'diff-range' : '';
+      fragment.append(element('span', className, line));
+      if (index < lines.length - 1) fragment.append('\n');
+    }
+    code.replaceChildren(fragment);
+  }
+}
+
+async function renderMermaidBlocks(container: HTMLElement, sanitizer: DOMPurifyModule['default']): Promise<void> {
+  const blocks = container.querySelectorAll<HTMLElement>('code.language-mermaid');
+  if (!blocks.length) return;
+  beautifulMermaidModule ??= import(beautifulMermaidUrl) as Promise<BeautifulMermaidModule>;
+  const { renderMermaidSVG } = await beautifulMermaidModule;
+  for (const code of blocks) {
+    const pre = code.closest('pre');
+    if (!pre) continue;
+    try {
+      const diagram = document.createElement('div');
+      diagram.className = 'mermaid-diagram';
+      diagram.innerHTML = sanitizer.sanitize(renderMermaidSVG(code.textContent ?? '', {
+        bg: 'var(--mermaid-bg)',
+        fg: 'var(--mermaid-fg)',
+        transparent: true
+      }));
+      pre.replaceWith(diagram);
+    } catch (error) {
+      console.error('Mermaid rendering failed.', error);
+    }
   }
 }
 
