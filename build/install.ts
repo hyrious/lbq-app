@@ -1,5 +1,6 @@
 // This file fetches electron and node types for better development experience.
-// The only assumption made here is `electron` binary is available in PATH.
+// The electron binary and its types always come from the same version pinned in
+// build/electron.ts, so `node_modules/electron` cannot drift from the runtime.
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -8,19 +9,8 @@ import { unzipSync } from 'node:zlib';
 // Remove warning on `shell: true` usage on Windows.
 process.removeAllListeners('warning');
 
-let electronBinaryPath: string;
-try {
-  electronBinaryPath = execFileSync('electron', ['-p', 'process.execPath'], {
-    shell: process.platform === 'win32',
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-    encoding: 'utf8'
-  }).trimEnd();
-} catch {
-  const output = execFileSync(process.execPath, [join(import.meta.dirname, 'electron.ts'), '--install'], {
-    encoding: 'utf8'
-  }).trimEnd();
-  electronBinaryPath = output.split(/\r?\n/).at(-1)!;
-}
+const electron = join(import.meta.dirname, 'electron.ts');
+const electronBinaryPath = execFileSync(process.execPath, [electron, '--install'], { encoding: 'utf8' }).trimEnd().split(/\r?\n/).at(-1)!;
 
 const repoRoot = join(import.meta.dirname, '..');
 const electronPackagePath = electronBinaryPath.includes('MacOS')

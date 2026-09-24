@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
 import { bundleIdentifier, productName } from '../src/product.ts';
+import { exec, installElectron, readStamp, repoRoot, syncSources } from './common.ts';
 
 interface HelperBundle {
   bundle: string;
@@ -11,12 +12,9 @@ interface HelperBundle {
   name: string;
 }
 
-const repoRoot = join(import.meta.dirname, '..');
 const executableName = productName.replaceAll(' ', '');
 const destination = join(homedir(), 'Applications', `${executableName}.app`);
 const appResources = join(destination, 'Contents', 'Resources', 'app');
-const stampPath = join(appResources, '.electron-version');
-const sourceEntries = ['main.ts', 'package.json', 'tsconfig.json', 'icon.png', 'src', 'tools'];
 const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign', 'osascript', 'sleep'];
 const helperBundles: HelperBundle[] = [
   { bundle: 'Electron Helper.app', suffix: 'helper', name: `${productName} Helper` },
@@ -28,8 +26,7 @@ const helperBundles: HelperBundle[] = [
 if (process.platform != 'darwin') throw new Error('App packaging is supported only on macOS.');
 for (const tool of requiredTools) requireTool(tool);
 
-const electronBinary = execFileSync(process.execPath, [join(import.meta.dirname, 'electron.ts'), '--install'], { encoding: 'utf8' }).trim().split(/\r?\n/).at(-1);
-if (!electronBinary || !existsSync(electronBinary)) throw new Error('Electron installation did not produce a binary.');
+const electronBinary = installElectron();
 const electronApp = join(electronBinary, '..', '..', '..');
 const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(electronApp, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
 const iconHash = createHash('sha256').update(readFileSync(join(repoRoot, 'icon.png'))).digest('hex');
@@ -45,10 +42,7 @@ if (rebuilt) {
   console.log('Binary is current, syncing sources.');
 }
 
-rmSync(appResources, { recursive: true, force: true });
-mkdirSync(appResources, { recursive: true });
-for (const entry of sourceEntries) cpSync(join(repoRoot, entry), join(appResources, entry), { recursive: true });
-writeFileSync(stampPath, stamp);
+syncSources(appResources, stamp);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
 refreshLaunchServices();
@@ -57,11 +51,7 @@ exec('open', [destination]);
 
 function needsRebuild(): boolean {
   if (!existsSync(join(destination, 'Contents', 'MacOS', executableName))) return true;
-  try {
-    return readFileSync(stampPath, 'utf8').trim() != stamp;
-  } catch {
-    return true;
-  }
+  return readStamp(appResources) != stamp;
 }
 
 function buildBundle() {
@@ -122,10 +112,6 @@ function requireTool(tool: string) {
   } catch {
     throw new Error(`Required system tool not found: ${tool}`);
   }
-}
-
-function exec(file: string, args: string[]) {
-  execFileSync(file, args, { stdio: 'inherit' });
 }
 
 function replacePlist(plist: string, key: string, value: string) {

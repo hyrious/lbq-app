@@ -41,7 +41,7 @@ class InboxStore {
 
 async function getToken(): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('/bin/zsh', ['-lc', 'gh auth token --hostname github.com'], { encoding: 'utf8' });
+    const { stdout } = await execFileAsync('gh', ['auth', 'token'], { encoding: 'utf8' });
     const token = stdout.trim();
     if (!token) throw new Error('empty token');
     return token;

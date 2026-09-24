@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { clipboard, nativeImage } from 'electron';
+import { clipboard, ClipboardItem, nativeImage } from 'electron';
 import { createServiceIdentifier } from '../../src/platform/instantiation/common/instantiation.ts';
 import { toNonEmptyString } from '../../src/base/common/types.ts';
 import type { Plugin } from '../../src/runtime/electron-main/plugin.ts';
@@ -47,8 +47,9 @@ class ImageService {
         image = image.resize({ width: targetWidth });
       }
 
-      clipboard.writeImage(image);
-      return { ...image.getSize(), preview: image.toPNG() };
+      const png = image.toPNG();
+      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })]);
+      return { ...image.getSize(), preview: png };
     } finally {
       if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });
     }

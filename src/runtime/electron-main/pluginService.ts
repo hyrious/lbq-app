@@ -7,7 +7,7 @@ import { Emitter, type Event } from '../../base/common/event.ts';
 import { isFunction, toBoolean, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
 import type { InstantiationService } from '../../platform/instantiation/common/instantiation.ts';
 import type { IpcHandlers, IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
-import type { Plugin, PluginContext } from './plugin.ts';
+import type { Plugin, PluginContext, PluginPlatform } from './plugin.ts';
 import type { PluginWindow, WindowService } from './windowService.ts';
 
 interface PluginModule {
@@ -59,6 +59,7 @@ export class PluginService implements IDisposable {
     for (const entry of entries.filter(entry => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
       const module = await import(pathToFileURL(join(this.toolsRoot, entry.name, 'plugin.ts')).href) as PluginModule;
       const plugin = this.assertPlugin(module.plugin, entry.name);
+      if (plugin.platform && !plugin.platform.includes(process.platform as PluginPlatform)) continue;
       if (this.records.has(plugin.id)) throw new Error(`Duplicate plugin identifier: ${plugin.id}`);
       this.records.set(plugin.id, { plugin });
     }
@@ -197,6 +198,7 @@ export class PluginService implements IDisposable {
     return {
       id,
       name,
+      platform: toPlatform(plugin?.platform),
       window: {
         entry,
         width,
@@ -210,6 +212,13 @@ export class PluginService implements IDisposable {
       activate: context => activate(context)
     };
   }
+}
+
+function toPlatform(value: unknown): readonly PluginPlatform[] | undefined {
+  const platforms = (Array.isArray(value) ? value : [value])
+    .map(item => toString(item))
+    .filter((item): item is PluginPlatform => item == 'darwin' || item == 'win32' || item == 'linux');
+  return platforms.length > 0 ? platforms : undefined;
 }
 
 function toTitleBarStyle(value: unknown): Plugin['window']['titleBarStyle'] {

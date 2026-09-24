@@ -11,8 +11,8 @@ body {
 }
 button { color: inherit; font: inherit; }
 .titlebar {
+  display: none;
   height: 38px;
-  display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
@@ -20,7 +20,12 @@ button { color: inherit; font: inherit; }
   opacity: .72;
   -webkit-app-region: drag;
 }
-main { height: calc(100% - 38px); }
+html[data-platform='darwin'] .titlebar { display: flex; }
+main { height: 100%; }
+html[data-platform='darwin'] main { height: calc(100% - 38px); }
+/* 仅在没有原生标题栏（darwin）时为窗口内标题栏预留高度 */
+:root { --titlebar-height: 0px; }
+html[data-platform='darwin'] { --titlebar-height: 38px; }
 .inbox { height: 100%; display: flex; flex-direction: column; }
 .selection-bar {
   flex: none;
@@ -152,7 +157,7 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 .empty strong { color: CanvasText; font-size: 15px; font-weight: 600; }
 .detail-scrim {
   position: fixed;
-  inset: 38px 0 0;
+  inset: var(--titlebar-height) 0 0;
   z-index: 1;
   visibility: hidden;
   pointer-events: none;
@@ -163,7 +168,7 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 }
 .detail {
   position: fixed;
-  top: 38px;
+  top: var(--titlebar-height);
   right: 0;
   bottom: 0;
   z-index: 2;
@@ -183,7 +188,7 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 }
 .diff-scrim {
   position: fixed;
-  inset: 38px 0 0;
+  inset: var(--titlebar-height) 0 0;
   z-index: 3;
   visibility: hidden;
   pointer-events: none;
@@ -194,12 +199,11 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 }
 .diff-panel {
   position: fixed;
-  top: 38px;
+  top: var(--titlebar-height);
   right: 0;
   bottom: 0;
   z-index: 4;
   width: 76%;
-  overflow: auto;
   visibility: hidden;
   background: Canvas;
   box-shadow: -8px 0 24px rgba(0, 0, 0, .22);
@@ -211,16 +215,89 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
   transform: translateX(0);
   transition-delay: 0s;
 }
-.diff-article { padding: 0 0 36px; }
-.diff-content {
+.diff-shell { height: 100%; display: flex; flex-direction: column; }
+.diff-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   --diffs-font-size: 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
   font-size: 11px;
 }
-.diff-content > * { flex: none; min-width: 0; }
+.diff-file-flash { animation: diff-file-flash 1.2s ease; }
+@keyframes diff-file-flash {
+  from { background: color-mix(in srgb, AccentColor 22%, transparent); }
+  to { background: transparent; }
+}
+.diff-toolbar {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.diff-file-count {
+  flex: none;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  font-size: 11px;
+}
+.diff-file-search {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+.diff-file-search::placeholder { color: color-mix(in srgb, CanvasText 45%, transparent); }
+.diff-file-search:focus { background: color-mix(in srgb, CanvasText 12%, transparent); }
+.diff-file-results {
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  left: 12px;
+  z-index: 4;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, Canvas 94%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+.diff-file-result {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 5px;
+  color: color-mix(in srgb, CanvasText 82%, transparent);
+  background: transparent;
+  font: 11px/1.4 ui-monospace, monospace;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.diff-file-result.active { color: CanvasText; background: color-mix(in srgb, AccentColor 22%, transparent); }
+.diff-file-result:hover { color: CanvasText; background: color-mix(in srgb, CanvasText 10%, transparent); }
+.diff-file-result.active:hover { background: color-mix(in srgb, AccentColor 28%, transparent); }
+.diff-file-result mark { color: inherit; background: transparent; font-weight: 700; }
+.diff-file-empty {
+  padding: 8px;
+  color: color-mix(in srgb, CanvasText 50%, transparent);
+  font-size: 11px;
+}
 article { width: 100%; padding: 16px 18px 36px; user-select: text; }
 .subject-header { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; padding-bottom: 2px; }
 .close {

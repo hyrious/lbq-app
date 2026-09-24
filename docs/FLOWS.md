@@ -9,6 +9,7 @@ main.ts
   → create root services and IPC router
   → create Tray
   → scan tools/*/plugin.ts
+  → skip plugins whose platform does not match the host
   → rebuild Tray menu from discovered metadata
   → reopen tool windows that were visible when LBQ exited
 ```

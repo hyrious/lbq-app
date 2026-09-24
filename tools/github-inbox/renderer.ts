@@ -1,5 +1,6 @@
 import type { IpcBridge, RpcRequest, RpcResponse } from '../../src/platform/ipc/common/ipc.ts';
 import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from './common.ts';
+import { matchTrace } from './fuzzy.ts';
 
 declare global {
   interface Window {
@@ -25,7 +26,10 @@ interface BeautifulMermaidModule {
   renderMermaidSVG(text: string, options: MermaidRenderOptions): string;
 }
 
-interface FileDiffMetadata {}
+interface FileDiffMetadata {
+  name: string;
+  prevName?: string;
+}
 
 interface ParsedPatch {
   files: FileDiffMetadata[];
@@ -44,22 +48,46 @@ interface CommentSource {
   kind: Comment['kind'];
 }
 
-interface FileDiffOptions {
+interface CodeViewOptions {
   diffStyle: 'unified' | 'split';
   overflow: 'scroll';
   theme: { dark: string; light: string };
+  stickyHeaders: boolean;
+  layout: { paddingTop: number; paddingBottom: number; gap: number };
 }
 
-interface FileDiffInstance {
-  readonly options: FileDiffOptions;
+interface CodeViewScrollTarget {
+  type: 'item';
+  id: string;
+  align?: 'start' | 'center' | 'end' | 'nearest';
+  offset?: number;
+  behavior?: 'instant' | 'smooth' | 'smooth-auto';
+}
+
+interface CodeViewDiffItem {
+  id: string;
+  type: 'diff';
+  fileDiff: FileDiffMetadata;
+}
+
+interface CodeViewRenderedItem {
+  id: string;
+  element: HTMLElement;
+}
+
+interface CodeViewInstance {
+  readonly options: CodeViewOptions;
+  setup(root: HTMLElement): void;
+  setItems(items: readonly CodeViewDiffItem[]): void;
+  scrollTo(target: CodeViewScrollTarget): void;
+  getRenderedItems(): CodeViewRenderedItem[];
+  subscribeToScroll(listener: (scrollTop: number) => void): () => void;
+  setOptions(options: CodeViewOptions): void;
   cleanUp(): void;
-  render(options: { fileDiff: FileDiffMetadata; containerWrapper: HTMLElement }): void;
-  rerender(): void;
-  setOptions(options: FileDiffOptions): void;
 }
 
 interface PierreDiffsModule {
-  FileDiff: new(options: FileDiffOptions) => FileDiffInstance;
+  CodeView: new(options: CodeViewOptions) => CodeViewInstance;
   parsePatchFiles(patch: string): ParsedPatch[];
 }
 
@@ -425,7 +453,11 @@ let items: NotificationItem[] = [];
 let selectedId = '';
 const openingIds = new Set<string>();
 const completingIds = new Set<string>();
-let diffInstances: FileDiffInstance[] = [];
+let diffView: CodeViewInstance | undefined;
+let diffOptions: CodeViewOptions | undefined;
+let unsubscribeDiffScroll: (() => void) | undefined;
+let diffFiles: { id: string; fileDiff: FileDiffMetadata }[] = [];
+let diffActiveFile = '';
 let diffRequest = 0;
 let pierreDiffsModule: PierreDiffsModule | undefined;
 let beautifulMermaidModule: Promise<BeautifulMermaidModule> | undefined;
@@ -433,7 +465,7 @@ const checkedIds = new Set<string>();
 const clientPromise = GitHubClient.create();
 const markedUrl = 'https://esm.sh/marked@15.0.7';
 const domPurifyUrl = 'https://esm.sh/dompurify@3.2.6';
-const pierreDiffsUrl = 'https://esm.sh/@pierre/diffs@1.3.2';
+const pierreDiffsUrl = 'https://esm.sh/@pierre/diffs@1.4.3';
 const beautifulMermaidUrl = 'https://esm.sh/beautiful-mermaid@1.1.3?bundle&target=es2022';
 const iconifyUrl = 'https://esm.sh/iconify-icon@3.0.2';
 const splitDiffMedia = window.matchMedia('(min-width: 1200px)');
@@ -645,7 +677,14 @@ function renderSelectionBar() {
 }
 
 function handleShortcut(event: KeyboardEvent): void {
-  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isEditing(event.target)) return;
+  if (event.defaultPrevented) return;
+  if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() == 'p'
+    && diffPanel.classList.contains('open')) {
+    event.preventDefault();
+    diffPanel.querySelector<HTMLInputElement>('.diff-file-search')?.focus();
+    return;
+  }
+  if (event.metaKey || event.ctrlKey || event.altKey || isEditing(event.target)) return;
   const key = event.key.toLowerCase();
   if (key == 'a' && !event.shiftKey && items.length) {
     event.preventDefault();
@@ -923,29 +962,178 @@ async function openDiff(detail: SubjectDetail): Promise<void> {
     renderDiff(patch, diffs);
   } catch (error) {
     if (request != diffRequest) return;
-    for (const instance of diffInstances) instance.cleanUp();
-    diffInstances = [];
+    closeDiffView();
     diffPanel.replaceChildren(element('div', 'loading error', errorMessage(error)));
   }
 }
 
 function renderDiff(patch: string, diffs: PierreDiffsModule): void {
-  const article = document.createElement('article');
-  article.className = 'diff-article';
-  const content = element('div', 'diff-content', '');
-  article.append(content);
-  diffPanel.replaceChildren(article);
-  for (const file of diffs.parsePatchFiles(patch).flatMap(parsed => parsed.files)) {
-    const instance = new diffs.FileDiff({
-      diffStyle: splitDiffMedia.matches ? 'split' : 'unified',
-      overflow: 'scroll',
-      theme: { dark: 'pierre-dark', light: 'pierre-light' }
-    });
-    diffInstances.push(instance);
-    instance.render({ fileDiff: file, containerWrapper: content });
+  const files = diffs.parsePatchFiles(patch).flatMap(parsed => parsed.files);
+  const seen = new Set<string>();
+  diffFiles = files.map((fileDiff, index) => {
+    const name = fileDiff.name || `file-${index}`;
+    const id = seen.has(name) ? `${name}#${index}` : name;
+    seen.add(id);
+    return { id, fileDiff };
+  });
+  diffActiveFile = diffFiles[0]?.id ?? '';
+
+  const shell = element('div', 'diff-shell', '');
+  const toolbar = renderDiffToolbar();
+  const view = element('div', 'diff-view', '');
+  shell.append(toolbar, view);
+  diffPanel.replaceChildren(shell);
+
+  if (!diffFiles.length) {
+    view.append(element('div', 'loading', '没有可显示的文件变更。'));
+    return;
   }
-  if (!diffInstances.length) content.append(element('div', 'loading', '没有可显示的文件变更。'));
-  diffPanel.scrollTop = 0;
+
+  diffOptions = {
+    diffStyle: diffStyle(),
+    overflow: 'scroll',
+    theme: { dark: 'pierre-dark', light: 'pierre-light' },
+    stickyHeaders: true,
+    layout: { paddingTop: 0, paddingBottom: 36, gap: 10 }
+  };
+  diffView = new diffs.CodeView(diffOptions);
+  diffView.setup(view);
+  diffView.setItems(diffFiles.map(({ id, fileDiff }) => ({ id, type: 'diff', fileDiff })));
+  unsubscribeDiffScroll = diffView.subscribeToScroll(syncActiveDiffFile);
+}
+
+function renderDiffToolbar(): HTMLElement {
+  const toolbar = element('div', 'diff-toolbar', '');
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'diff-file-search';
+  search.placeholder = '搜索文件…';
+  search.autocomplete = 'off';
+  search.spellcheck = false;
+
+  const results = element('div', 'diff-file-results hidden', '');
+  const fileById = new Map(diffFiles.map(({ id, fileDiff }) => [id, fileDiff]));
+  let matches: string[] = [];
+  let activeIndex = 0;
+
+  const select = (index: number) => {
+    activeIndex = index;
+    for (const [position, result] of [...results.children].entries()) {
+      result.classList.toggle('active', position == activeIndex);
+    }
+  };
+  const close = () => {
+    results.classList.add('hidden');
+    results.replaceChildren();
+  };
+  const jump = (id: string) => {
+    search.value = '';
+    close();
+    search.blur();
+    jumpToDiffFile(id);
+  };
+
+  const runSearch = () => {
+    const query = search.value.trim();
+    matches = query
+      ? diffFiles
+        .map(({ id, fileDiff }) => ({ id, score: scoreFile(query, fileDiff) }))
+        .filter(({ score }) => score > -Infinity)
+        .sort((a, b) => b.score - a.score)
+        .map(({ id }) => id)
+      : diffFiles.map(({ id }) => id);
+    const fragment = document.createDocumentFragment();
+    for (const [index, id] of matches.entries()) {
+      const row = element('button', `diff-file-result${index == 0 ? ' active' : ''}`, '');
+      row.type = 'button';
+      row.append(...highlightFile(query, fileById.get(id)!));
+      row.onclick = () => jump(id);
+      fragment.append(row);
+    }
+    if (!matches.length) fragment.append(element('div', 'diff-file-empty', '没有匹配的文件。'));
+    results.replaceChildren(fragment);
+    results.classList.remove('hidden');
+    activeIndex = 0;
+  };
+
+  search.oninput = runSearch;
+  search.onfocus = runSearch;
+  search.onkeydown = event => {
+    if (event.key == 'ArrowDown' || event.key == 'ArrowUp') {
+      event.preventDefault();
+      if (!matches.length) return;
+      const offset = event.key == 'ArrowDown' ? 1 : -1;
+      select((activeIndex + offset + matches.length) % matches.length);
+      results.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (event.key == 'Enter') {
+      event.preventDefault();
+      if (matches[activeIndex]) jump(matches[activeIndex]);
+    } else if (event.key == 'Escape') {
+      event.preventDefault();
+      if (search.value) {
+        search.value = '';
+        runSearch();
+      } else {
+        close();
+        search.blur();
+      }
+    }
+  };
+
+  toolbar.append(element('span', 'diff-file-count', `${diffFiles.length} 个文件`), search, results);
+  return toolbar;
+}
+
+function scoreFile(query: string, fileDiff: FileDiffMetadata): number {
+  let score = -Infinity;
+  for (const name of [fileDiff.name, fileDiff.prevName]) {
+    if (!name) continue;
+    const trace = matchTrace(query, name);
+    if (trace && trace.score > score) score = trace.score;
+  }
+  return score;
+}
+
+function highlightFile(query: string, fileDiff: FileDiffMetadata): (Node | string)[] {
+  const name = fileDiff.name;
+  const trace = query ? matchTrace(query, name) : null;
+  if (!trace) return [name];
+  const nodes: (Node | string)[] = [];
+  let start = 0;
+  for (const stop of trace.stops) {
+    if (stop > start) nodes.push(name.slice(start, stop));
+    nodes.push(element('mark', '', name[stop]));
+    start = stop + 1;
+  }
+  if (start < name.length) nodes.push(name.slice(start));
+  return nodes;
+}
+
+function syncActiveDiffFile(): void {
+  if (!diffView) return;
+  const view = diffPanel.querySelector<HTMLElement>('.diff-view');
+  if (!view) return;
+  const viewTop = view.getBoundingClientRect().top;
+  const rendered = diffView.getRenderedItems();
+  let active = rendered[0]?.id ?? diffActiveFile;
+  for (const item of rendered) {
+    if (item.element.getBoundingClientRect().top - viewTop <= 2) active = item.id;
+    else break;
+  }
+  if (active == diffActiveFile) return;
+  diffActiveFile = active;
+  const search = diffPanel.querySelector<HTMLInputElement>('.diff-file-search');
+  if (search && !search.value) search.placeholder = `搜索文件…（当前：${active.split('/').pop()}）`;
+}
+
+function jumpToDiffFile(id: string): void {
+  if (!diffView) return;
+  diffActiveFile = id;
+  diffView.scrollTo({ type: 'item', id, align: 'start', behavior: 'instant' });
+  const item = diffView.getRenderedItems().find(rendered => rendered.id == id);
+  if (!item) return;
+  item.element.classList.add('diff-file-flash');
+  setTimeout(() => item.element.classList.remove('diff-file-flash'), 1200);
 }
 
 async function loadPierreDiffs(): Promise<PierreDiffsModule> {
@@ -953,22 +1141,32 @@ async function loadPierreDiffs(): Promise<PierreDiffsModule> {
   return pierreDiffsModule;
 }
 
+function diffStyle(): 'unified' | 'split' {
+  return splitDiffMedia.matches ? 'split' : 'unified';
+}
+
 function closeDiff(): void {
   diffRequest++;
-  for (const instance of diffInstances) instance.cleanUp();
-  diffInstances = [];
+  closeDiffView();
   diffScrim.classList.remove('open');
   diffPanel.classList.remove('open');
   diffPanel.setAttribute('aria-hidden', 'true');
   diffPanel.replaceChildren();
 }
 
+function closeDiffView(): void {
+  unsubscribeDiffScroll?.();
+  unsubscribeDiffScroll = undefined;
+  diffView?.cleanUp();
+  diffView = undefined;
+  diffOptions = undefined;
+  diffFiles = [];
+  diffActiveFile = '';
+}
+
 function updateDiffStyle(): void {
-  const diffStyle = splitDiffMedia.matches ? 'split' : 'unified';
-  for (const instance of diffInstances) {
-    instance.setOptions({ ...instance.options, diffStyle });
-    instance.rerender();
-  }
+  if (!diffView || !diffOptions) return;
+  diffView.setOptions({ ...diffOptions, diffStyle: diffStyle() });
 }
 
 function stripOwner(label: string): string {

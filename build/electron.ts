@@ -7,7 +7,7 @@ import { execFileSync, spawn } from 'node:child_process';
 // Remove warning on `shell: true` usage on Windows.
 process.removeAllListeners('warning');
 
-const electronVersion = '40.1.0';
+const electronVersion = '44.4.5';
 const repoRoot = join(import.meta.dirname, '..');
 const cacheRoot = join(repoRoot, '.electron');
 const binaryPath = getBinaryPath();

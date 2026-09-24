@@ -19,9 +19,12 @@ export interface PluginContext {
   bindIpc<S extends object>(handlers: IpcHandlers<S>): void;
 }
 
+export type PluginPlatform = 'darwin' | 'win32' | 'linux';
+
 export interface Plugin {
   readonly id: string;
   readonly name: string;
+  readonly platform?: PluginPlatform | readonly PluginPlatform[];
   readonly window: PluginWindowOptions;
   activate(context: PluginContext): void | Promise<void>;
 }

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { DisposableStore, toDisposable, type IDisposable } from '../../base/common/lifecycle.ts';
 import { toNumber, toPlainObject } from '../../base/common/types.ts';
 import type { IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
+import { fixWindowsDevToolsFonts } from './devToolsFontFix.ts';
 import type { Plugin, PluginWindowOptions } from './plugin.ts';
 
 interface WindowState {
@@ -38,18 +39,35 @@ export class WindowService {
       minWidth: plugin.window.minWidth,
       minHeight: plugin.window.minHeight,
       backgroundColor: '#00000000',
-      titleBarStyle: plugin.window.titleBarStyle,
+      titleBarStyle: process.platform == 'darwin' ? plugin.window.titleBarStyle : undefined,
       vibrancy: process.platform == 'darwin' ? plugin.window.vibrancy : undefined,
       visualEffectState: process.platform == 'darwin' && plugin.window.vibrancy ? 'active' : undefined,
       webPreferences: {
         preload: this.preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false
+        sandbox: false,
+        defaultFontFamily: {
+          standard: 'Noto Sans SC',
+          serif: 'Noto Serif SC',
+          sansSerif: 'Noto Sans SC',
+          monospace: 'Cascadia Mono'
+        }
       }
     });
 
     store.add(this.ipcRouter.registerWebContents(plugin.id, window.webContents));
+    fixWindowsDevToolsFonts(window);
+
+    window.webContents.on('before-input-event', (event, input) => {
+      if (input.type == 'keyDown') {
+        if (input.key == 'F12') {
+          event.preventDefault();
+          window.webContents.toggleDevTools();
+        }
+      }
+    });
+
     let saveTimeout: NodeJS.Timeout | undefined;
     const saveState = () => {
       clearTimeout(saveTimeout);

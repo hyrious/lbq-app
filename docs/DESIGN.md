@@ -15,6 +15,8 @@ LBQ is a single Electron runtime for trusted, built-in tools. Tools are structur
 
 Each plugin exports `plugin: Plugin`. Its directory name must equal `plugin.id`. Metadata is loaded at startup to build the Tray menu, while `activate()` runs only when the tool is opened.
 
+The optional `platform` field restricts where the plugin loads. It accepts a single platform (`'darwin'`, `'win32'`, or `'linux'`) or an array of them. When set, `PluginService` skips the plugin on any other platform: it is not imported into the records, does not appear in the Tray menu, and cannot be opened. Omitting `platform` loads the plugin everywhere.
+
 Setting `window.hideOnClose` hides the window on close. Opening the tool again shows the existing window without recreating its activation.
 
 `PluginContext` contains:

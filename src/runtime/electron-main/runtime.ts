@@ -43,7 +43,11 @@ export function runApplication(): void {
 async function start(): Promise<void> {
   const disposables = new DisposableStore();
   app.on('before-quit', () => disposables.dispose());
-  Menu.setApplicationMenu(null);
+  const template: Electron.MenuItemConstructorOptions[] = [
+    { label: '刷新', role: 'reload' },
+    { label: '开发者工具', role: 'toggleDevTools' },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   app.dock?.hide();
 
   const preloadSource = stripTypeScriptTypes(await readFile(join(applicationRoot, 'src/runtime/electron-preload/preload.ts'), 'utf8'));

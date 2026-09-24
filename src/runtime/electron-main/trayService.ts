@@ -12,7 +12,7 @@ export class TrayService extends Disposable {
     this.plugins = plugins;
     const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
     if (process.platform == 'darwin') icon.setTemplateImage(true);
-    this.tray = new Tray(icon, process.platform == 'darwin' ? trayGuid : undefined);
+    this.tray = new Tray(icon, trayGuid);
     this.tray.setToolTip(productName);
     this.tray.on('click', () => this.tray.popUpContextMenu());
     // Do not destroy the app-lifetime Tray during shutdown. On macOS,
