@@ -18,32 +18,71 @@ body {
   user-select: none;
 }
 
+/*
+ * The content area owns the scrollbar so the search row and the list share
+ * the same content box, keeping their left and right edges aligned whether
+ * or not a scrollbar is present.
+ */
 .content {
   flex: 1;
   min-height: 0;
   position: relative;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
+}
+
+/*
+ * The search card is inset exactly like a `.program` row. It sticks to the
+ * top and paints over the rows scrolling behind it, so the list keeps its
+ * own inset without the two sides drifting apart.
+ */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  padding: 8px;
+  background: Canvas;
+}
+
+.search {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.search::placeholder { color: color-mix(in srgb, currentColor 45%, transparent); }
+.search:focus { background: color-mix(in srgb, currentColor 8%, transparent); }
+
+mark {
+  color: inherit;
+  background: transparent;
+  font-weight: 700;
 }
 
 .list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* Padding lives on the scroll container so the scrollbar hugs the window
-     edge while the rows stay inset. */
-  padding: 8px;
-  scrollbar-gutter: stable;
+  padding: 0 8px 8px;
 }
 
-html[data-platform='darwin'] .list { padding-top: 0; }
-
+/* Fixed to the window so it centers in the space below the titlebar, not in
+   the scrollable content box. */
 .empty {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  inset: var(--titlebar-height) 0 0;
   display: flex;
   align-items: center;
   justify-content: center;

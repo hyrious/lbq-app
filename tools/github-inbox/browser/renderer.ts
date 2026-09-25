@@ -1,6 +1,6 @@
 import { createInvoke, element, getElement, showToast } from 'app-file://shared/renderer.ts';
+import { bestScore, highlight } from 'app-file://shared/quick-match.ts';
 import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from '../common/common.ts';
-import { matchTrace } from '../common/fuzzy.ts';
 
 const invoke = createInvoke<GitHubInboxRpc>();
 
@@ -1032,7 +1032,7 @@ function renderDiffToolbar(): HTMLElement {
     const query = search.value.trim();
     matches = query
       ? diffFiles
-        .map(({ id, fileDiff }) => ({ id, score: scoreFile(query, fileDiff) }))
+        .map(({ id, fileDiff }) => ({ id, score: bestScore(query, [fileDiff.name, fileDiff.prevName]) }))
         .filter(({ score }) => score > -Infinity)
         .sort((a, b) => b.score - a.score)
         .map(({ id }) => id)
@@ -1041,7 +1041,7 @@ function renderDiffToolbar(): HTMLElement {
     for (const [index, id] of matches.entries()) {
       const row = element('button', `diff-file-result${index == 0 ? ' active' : ''}`, '');
       row.type = 'button';
-      row.append(...highlightFile(query, fileById.get(id)!));
+      row.append(...highlight(query, fileById.get(id)!.name));
       row.onclick = () => jump(id);
       fragment.append(row);
     }
@@ -1077,31 +1077,6 @@ function renderDiffToolbar(): HTMLElement {
 
   toolbar.append(element('span', 'diff-file-count', `${diffFiles.length} 个文件`), search, results);
   return toolbar;
-}
-
-function scoreFile(query: string, fileDiff: FileDiffMetadata): number {
-  let score = -Infinity;
-  for (const name of [fileDiff.name, fileDiff.prevName]) {
-    if (!name) continue;
-    const trace = matchTrace(query, name);
-    if (trace && trace.score > score) score = trace.score;
-  }
-  return score;
-}
-
-function highlightFile(query: string, fileDiff: FileDiffMetadata): (Node | string)[] {
-  const name = fileDiff.name;
-  const trace = query ? matchTrace(query, name) : null;
-  if (!trace) return [name];
-  const nodes: (Node | string)[] = [];
-  let start = 0;
-  for (const stop of trace.stops) {
-    if (stop > start) nodes.push(name.slice(start, stop));
-    nodes.push(element('mark', '', name[stop]));
-    start = stop + 1;
-  }
-  if (start < name.length) nodes.push(name.slice(start));
-  return nodes;
 }
 
 function syncActiveDiffFile(): void {
