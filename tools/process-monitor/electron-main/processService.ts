@@ -388,7 +388,7 @@ function displayName(key: string, representative: RawProcess): string {
   if (base.endsWith('.app')) return base.slice(0, -'.app'.length);
   // Prefer the OS-provided product name so the group reads like an application
   // ("Visual Studio Code") instead of a file name ("Code").
-  if (representative.displayName) return representative.displayName;
+  if (representative.displayName?.trim()) return representative.displayName;
   const name = representative.path ? baseName(representative.path) : representative.name;
   const cleaned = stripExecutableSuffix(name)
     .replace(/[-_. ]?(helper|renderer|gpu|utility|crashpad|service)(?: \(\w+\))?$/i, '')
