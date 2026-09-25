@@ -1,8 +1,9 @@
 import { execFileSync, spawn } from 'node:child_process';
+import { hash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { productName } from '../src/product.ts';
-import { installElectron, readStamp, syncSources } from './common.ts';
+import { exec, installElectron, readStamp, repoRoot, syncSources } from './common.ts';
 
 const executableName = productName.replaceAll(' ', '');
 const localAppData = process.env.LOCALAPPDATA;
@@ -16,10 +17,15 @@ const appResources = join(destination, 'resources', 'app');
 const electronBinary = installElectron();
 const electronRoot = join(electronBinary, '..');
 const electronVersion = readFileSync(join(electronRoot, 'version'), 'utf8').trim();
-const stamp = `electron ${electronVersion}`;
+const iconHash = hash('sha256', readFileSync(join(repoRoot, 'icon.png')));
+const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
+
+// The running app holds the executable and its icon open, so it must be
+// stopped before the distribution can be rebuilt.
+quitRunningApp();
 
 // Rebuild the distribution only when it is missing or was built from another
-// Electron version. Either way the sources are refreshed afterwards.
+// Electron version or icon. Either way the sources are refreshed afterwards.
 if (needsRebuild()) {
   buildDistribution();
 } else {
@@ -28,7 +34,6 @@ if (needsRebuild()) {
 
 syncSources(appResources, stamp);
 
-quitRunningApp();
 spawn(executablePath, [], { detached: true, stdio: 'ignore' }).unref();
 
 function needsRebuild(): boolean {
@@ -41,6 +46,17 @@ function buildDistribution() {
   mkdirSync(dirname(destination), { recursive: true });
   cpSync(electronRoot, destination, { recursive: true });
   renameSync(join(destination, 'electron.exe'), executablePath);
+
+  const iconPath = join(destination, 'icon.ico');
+  makeIcon(iconPath);
+  exec('rcedit', [executablePath, '--set-icon', iconPath]);
+}
+
+/** Renders icon.png into a multi-size .ico using Pillow from the local Python. */
+function makeIcon(destinationPath: string) {
+  const script = `import sys\nfrom PIL import Image\nsizes = [(n, n) for n in (16, 24, 32, 48, 64, 128, 256)]\nImage.open(sys.argv[1]).convert('RGBA').save(sys.argv[2], format='ICO', sizes=sizes)`;
+  exec('python', ['-c', script, join(repoRoot, 'icon.png'), destinationPath]);
+  if (!existsSync(destinationPath)) throw new Error(`Failed to create ${destinationPath}`);
 }
 
 function quitRunningApp() {

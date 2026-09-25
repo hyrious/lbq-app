@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { DisposableStore, toDisposable, type IDisposable } from '../../base/common/lifecycle.ts';
 import { toNumber, toPlainObject } from '../../base/common/types.ts';
 import type { IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
@@ -35,6 +35,7 @@ export class WindowService {
     const state = await this.readState(statePath, plugin.window);
     const window = new BrowserWindow({
       autoHideMenuBar: true,
+      icon: join(resolve(import.meta.dirname, '../../..'), 'icon.png'),
       ...state,
       minWidth: plugin.window.minWidth,
       minHeight: plugin.window.minHeight,

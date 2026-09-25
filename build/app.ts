@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
@@ -15,7 +15,6 @@ interface HelperBundle {
 const executableName = productName.replaceAll(' ', '');
 const destination = join(homedir(), 'Applications', `${executableName}.app`);
 const appResources = join(destination, 'Contents', 'Resources', 'app');
-const requiredTools = ['ditto', 'plutil', 'mv', 'sips', 'iconutil', 'codesign', 'osascript', 'sleep'];
 const helperBundles: HelperBundle[] = [
   { bundle: 'Electron Helper.app', suffix: 'helper', name: `${productName} Helper` },
   { bundle: 'Electron Helper (Renderer).app', suffix: 'helper.Renderer', name: `${productName} Helper (Renderer)` },
@@ -24,12 +23,11 @@ const helperBundles: HelperBundle[] = [
 ];
 
 if (process.platform != 'darwin') throw new Error('App packaging is supported only on macOS.');
-for (const tool of requiredTools) requireTool(tool);
 
 const electronBinary = installElectron();
 const electronApp = join(electronBinary, '..', '..', '..');
 const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(electronApp, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
-const iconHash = createHash('sha256').update(readFileSync(join(repoRoot, 'icon.png'))).digest('hex');
+const iconHash = hash('sha256', readFileSync(join(repoRoot, 'icon.png')));
 const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
 
 // Rebuild the bundle only when it is missing or was built from another Electron
@@ -104,14 +102,6 @@ function quitRunningApp() {
     execFileSync('sleep', ['0.1']);
   }
   throw new Error('Image Portal did not quit within 5 seconds.');
-}
-
-function requireTool(tool: string) {
-  try {
-    execFileSync('which', [tool], { stdio: 'ignore' });
-  } catch {
-    throw new Error(`Required system tool not found: ${tool}`);
-  }
 }
 
 function replacePlist(plist: string, key: string, value: string) {
