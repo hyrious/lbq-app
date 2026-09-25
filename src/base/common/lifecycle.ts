@@ -1,3 +1,5 @@
+import { isFunction, toPlainObject } from './types.ts';
+
 export interface IDisposable {
   dispose(): void;
 }
@@ -62,5 +64,3 @@ export abstract class Disposable implements IDisposable {
     this.store.dispose();
   }
 }
-
-import { isFunction, toPlainObject } from './types.ts';

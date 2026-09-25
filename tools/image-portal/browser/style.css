@@ -9,6 +9,8 @@ html, body {
 body {
   margin: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   font-family: system-ui, sans-serif;
   background: transparent;
   color: CanvasText;
@@ -16,36 +18,14 @@ body {
   user-select: none;
 }
 
-.titlebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 38px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 80px;
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.72;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 2;
-  -webkit-app-region: drag;
-}
-
-html[data-platform='darwin'] .titlebar { display: flex; }
-
 .drop-area {
   position: fixed;
   inset: 0;
   padding: 16px;
+  /* Leave room for the in-page title bar when the page draws one. */
+  top: var(--titlebar-height);
   -webkit-app-region: drag;
 }
-
-html[data-platform='darwin'] .drop-area { padding-top: 44px; }
 
 .drop-surface {
   width: 100%;

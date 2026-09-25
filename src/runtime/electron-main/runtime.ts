@@ -54,7 +54,7 @@ async function start(): Promise<void> {
   const preloadPath = join(app.getPath('userData'), 'preload.js');
   await writeFile(preloadPath, preloadSource);
 
-  const protocolService = disposables.add(new ProtocolService(toolsRoot, !app.isPackaged));
+  const protocolService = disposables.add(new ProtocolService(!app.isPackaged));
   protocolService.register();
   const ipcRouter = disposables.add(new IpcRouter());
   const rootServices = disposables.add(new InstantiationService());

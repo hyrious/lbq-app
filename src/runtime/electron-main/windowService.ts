@@ -1,4 +1,5 @@
 import { app, BrowserWindow, shell } from 'electron';
+import { readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { DisposableStore, toDisposable, type IDisposable } from '../../base/common/lifecycle.ts';
@@ -22,6 +23,7 @@ export class WindowService {
   private readonly userDataPath: string;
   private readonly preloadPath: string;
   private readonly ipcRouter: IpcRouter;
+  private chromeCssCache: string | undefined;
 
   constructor(userDataPath: string, preloadPath: string, ipcRouter: IpcRouter) {
     this.userDataPath = userDataPath;
@@ -33,6 +35,7 @@ export class WindowService {
     const store = new DisposableStore();
     const statePath = join(this.userDataPath, `window-state-${plugin.id}.json`);
     const state = await this.readState(statePath, plugin.window);
+    const inset = process.platform == 'darwin';
     const window = new BrowserWindow({
       autoHideMenuBar: true,
       icon: join(resolve(import.meta.dirname, '../../..'), 'icon.png'),
@@ -40,9 +43,9 @@ export class WindowService {
       minWidth: plugin.window.minWidth,
       minHeight: plugin.window.minHeight,
       backgroundColor: '#00000000',
-      titleBarStyle: process.platform == 'darwin' ? plugin.window.titleBarStyle : undefined,
-      vibrancy: process.platform == 'darwin' ? plugin.window.vibrancy : undefined,
-      visualEffectState: process.platform == 'darwin' && plugin.window.vibrancy ? 'active' : undefined,
+      titleBarStyle: inset ? 'hiddenInset' : undefined,
+      vibrancy: inset ? plugin.window.vibrancy : undefined,
+      visualEffectState: inset && plugin.window.vibrancy ? 'active' : undefined,
       webPreferences: {
         preload: this.preloadPath,
         contextIsolation: true,
@@ -59,6 +62,9 @@ export class WindowService {
 
     store.add(this.ipcRouter.registerWebContents(plugin.id, window.webContents));
     fixWindowsDevToolsFonts(window);
+    const injectChrome = () => void window.webContents.insertCSS(this.chromeCss());
+    window.webContents.on('dom-ready', injectChrome);
+    store.add(toDisposable(() => window.webContents.removeListener('dom-ready', injectChrome)));
 
     window.webContents.on('before-input-event', (event, input) => {
       if (input.type == 'keyDown') {
@@ -93,7 +99,14 @@ export class WindowService {
     }
 
     const closed = () => {
-      store.dispose();
+      // `destroy()` emits 'closed' synchronously; dispose defensively so a
+      // failure while tearing down resources cannot escape into Electron's
+      // event loop and crash the main process.
+      try {
+        store.dispose();
+      } catch (error) {
+        console.error(`Failed to dispose window resources for plugin: ${plugin.id}`, error);
+      }
       onClosed();
     };
     window.once('closed', closed);
@@ -110,10 +123,19 @@ export class WindowService {
     return {
       browserWindow: window,
       dispose() {
+        window.removeListener('closed', closed);
         if (!window.isDestroyed()) window.destroy();
-        store.dispose();
+        try {
+          store.dispose();
+        } catch (error) {
+          console.error(`Failed to dispose window resources for plugin: ${plugin.id}`, error);
+        }
       }
     };
+  }
+
+  private chromeCss(): string {
+    return this.chromeCssCache ??= readFileSync(join(resolve(import.meta.dirname, '../../..'), 'tools/shared/window-chrome.css'), 'utf8');
   }
 
   private async readState(path: string, options: PluginWindowOptions): Promise<WindowState> {

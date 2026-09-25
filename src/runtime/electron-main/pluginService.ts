@@ -1,7 +1,8 @@
+import { app } from 'electron';
+import { existsSync } from 'node:fs';
 import { readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { app } from 'electron';
 import { DisposableStore, type IDisposable } from '../../base/common/lifecycle.ts';
 import { Emitter, type Event } from '../../base/common/event.ts';
 import { isFunction, toBoolean, toNonEmptyString, toNumber, toPlainObject, toString } from '../../base/common/types.ts';
@@ -57,7 +58,11 @@ export class PluginService implements IDisposable {
     const storedIds = await this.readRestorableIds();
     const entries = await readdir(this.toolsRoot, { withFileTypes: true });
     for (const entry of entries.filter(entry => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
-      const module = await import(pathToFileURL(join(this.toolsRoot, entry.name, 'plugin.ts')).href) as PluginModule;
+      // Only directories holding a plugin.ts are tools; this lets a sibling
+      // like `shared` sit next to them without being loaded as one.
+      const manifest = join(this.toolsRoot, entry.name, 'plugin.ts');
+      if (!existsSync(manifest)) continue;
+      const module = await import(pathToFileURL(manifest).href) as PluginModule;
       const plugin = this.assertPlugin(module.plugin, entry.name);
       if (plugin.platform && !plugin.platform.includes(process.platform as PluginPlatform)) continue;
       if (this.records.has(plugin.id)) throw new Error(`Duplicate plugin identifier: ${plugin.id}`);
@@ -122,7 +127,11 @@ export class PluginService implements IDisposable {
   dispose(): void {
     this.disposing = true;
     for (const record of this.records.values()) {
-      record.window?.dispose();
+      try {
+        record.window?.dispose();
+      } catch (error) {
+        console.error(`Failed to dispose window for plugin: ${record.plugin.id}`, error);
+      }
       this.deactivate(record);
     }
     this.records.clear();
@@ -206,7 +215,6 @@ export class PluginService implements IDisposable {
         minWidth: toNumber(window?.minWidth),
         minHeight: toNumber(window?.minHeight),
         hideOnClose: toBoolean(window?.hideOnClose),
-        titleBarStyle: toTitleBarStyle(window?.titleBarStyle),
         vibrancy: toVibrancy(window?.vibrancy)
       },
       activate: context => activate(context)
@@ -219,11 +227,6 @@ function toPlatform(value: unknown): readonly PluginPlatform[] | undefined {
     .map(item => toString(item))
     .filter((item): item is PluginPlatform => item == 'darwin' || item == 'win32' || item == 'linux');
   return platforms.length > 0 ? platforms : undefined;
-}
-
-function toTitleBarStyle(value: unknown): Plugin['window']['titleBarStyle'] {
-  const string = toString(value);
-  return string == 'default' || string == 'hidden' || string == 'hiddenInset' ? string : undefined;
 }
 
 function toVibrancy(value: unknown): Plugin['window']['vibrancy'] {

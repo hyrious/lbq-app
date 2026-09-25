@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { hash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
 import { bundleIdentifier, productName } from '../src/product.ts';
 import { exec, installElectron, readStamp, repoRoot, syncSources } from './common.ts';
 
@@ -30,9 +30,7 @@ const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersio
 const iconHash = hash('sha256', readFileSync(join(repoRoot, 'icon.png')));
 const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
 
-// Rebuild the bundle only when it is missing or was built from another Electron
-// version. Either way the sources are refreshed and the app is re-signed; the
-// signature seals the resources, so it must happen after the copy.
+// The signature seals the resources, so re-signing must happen after the copy.
 const rebuilt = needsRebuild();
 if (rebuilt) {
   buildBundle();

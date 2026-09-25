@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron';
 
 const monospaceFont = 'Cascadia Mono, consolas, monospace';
 
-// Work around the broken DevTools fonts on Windows: https://github.com/electron/electron/issues/42055
+// https://github.com/electron/electron/issues/42055
 const devToolsStyle = `
   :root {
     --sys-color-base: var(--ref-palette-neutral100);

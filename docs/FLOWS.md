@@ -50,8 +50,6 @@ renderer portal.invoke(method, input)
   → return structured-clone result
 ```
 
-The renderer cannot supply or override the plugin namespace.
-
 ## Development and Build
 
 `npm run dev` launches the repository through the pinned Electron runtime. Renderer TypeScript is stripped by the local protocol when loaded, and renderer responses disable caching so HTML, CSS, and TypeScript changes take effect after a page reload.

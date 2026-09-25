@@ -1,0 +1,65 @@
+/*
+ * Shared window chrome for every plugin page.
+ *
+ * Injected into each plugin window by WindowService. A tool only writes
+ * `<header class="titlebar">Name</header>` and insets its own content with
+ * `padding-top: var(--titlebar-height)`.
+ */
+
+:root {
+  --titlebar-height: 0px;
+}
+
+html[data-platform='darwin'] {
+  --titlebar-height: 38px;
+}
+
+.titlebar {
+  display: none;
+  flex: none;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  /* Keep the title clear of the macOS traffic lights and of anything a tool
+     pins to the trailing edge. */
+  padding: 0 78px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-app-region: drag;
+}
+
+html[data-platform='darwin'] .titlebar {
+  display: flex;
+}
+
+.titlebar .title {
+  font-weight: 500;
+  opacity: 0.78;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titlebar .summary {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Interactive children must opt out of the drag region. */
+.titlebar button,
+.titlebar a,
+.titlebar input,
+.titlebar [data-no-drag] {
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .titlebar {
+    transition: opacity 0.2s;
+  }
+}

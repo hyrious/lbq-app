@@ -1,12 +1,8 @@
-import type { IpcBridge, RpcRequest, RpcResponse } from '../../src/platform/ipc/common/ipc.ts';
-import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from './common.ts';
-import { matchTrace } from './fuzzy.ts';
+import { createInvoke, element, getElement, showToast } from 'app-file://shared/renderer.ts';
+import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from '../common/common.ts';
+import { matchTrace } from '../common/fuzzy.ts';
 
-declare global {
-  interface Window {
-    portal: IpcBridge;
-  }
-}
+const invoke = createInvoke<GitHubInboxRpc>();
 
 interface MarkedModule {
   marked: { parse(markdown: string, options?: { gfm?: boolean; breaks?: boolean }): string | Promise<string> };
@@ -448,7 +444,6 @@ const detailScrim = getElement<HTMLDivElement>('detail-scrim');
 const detailPanel = getElement<HTMLElement>('detail');
 const diffScrim = getElement<HTMLDivElement>('diff-scrim');
 const diffPanel = getElement<HTMLElement>('diff-panel');
-const toastRegion = getElement<HTMLDivElement>('toasts');
 let items: NotificationItem[] = [];
 let selectedId = '';
 const openingIds = new Set<string>();
@@ -1373,35 +1368,9 @@ function fullDate(value: string): string {
   return Number.isFinite(date.getTime()) ? date.toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
 }
 
-function showToast(message: string, tone: 'info' | 'error' = 'info') {
-  const toast = element('div', `toast ${tone}`, message);
-  toastRegion.append(toast);
-  setTimeout(() => toast.remove(), 2400);
-}
-
 function errorMessage(error: unknown): string {
   console.error(error);
   return error instanceof Error ? error.message : String(error);
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text: string): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  node.textContent = text;
-  return node;
-}
-
-async function invoke<K extends Extract<keyof GitHubInboxRpc, string>>(
-  method: K,
-  input: RpcRequest<GitHubInboxRpc[K]>
-): Promise<RpcResponse<GitHubInboxRpc[K]>> {
-  return await window.portal.invoke(method, input) as RpcResponse<GitHubInboxRpc[K]>;
-}
-
-function getElement<T extends HTMLElement>(id: string): T {
-  const element = document.getElementById(id);
-  if (!element) throw new Error(`缺少 #${id}`);
-  return element as T;
 }
 
 interface UnknownObject {

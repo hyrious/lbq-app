@@ -1,4 +1,4 @@
-import type { RpcMethod } from '../../src/platform/ipc/common/ipc.ts';
+import type { RpcMethod } from '../../../src/platform/ipc/common/ipc.ts';
 
 export interface ImageRequest {
   path?: string;

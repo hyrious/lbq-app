@@ -1,4 +1,4 @@
-import type { RpcMethod } from '../../src/platform/ipc/common/ipc.ts';
+import type { RpcMethod } from '../../../src/platform/ipc/common/ipc.ts';
 
 export type SubjectKind = 'Issue' | 'PullRequest' | 'Other';
 export type SubjectStatus = 'open' | 'draft' | 'merged' | 'closed' | 'completed' | 'not-planned';

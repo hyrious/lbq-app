@@ -1,11 +1,11 @@
+import { app, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFile, rename, writeFile } from 'node:fs/promises';
-import { promisify } from 'node:util';
 import { join } from 'node:path';
-import { app, shell } from 'electron';
+import { promisify } from 'node:util';
 import { toNonEmptyString, toPlainObject } from '../../src/base/common/types.ts';
 import type { Plugin } from '../../src/runtime/electron-main/plugin.ts';
-import type { GitHubInboxRpc, NotificationItem } from './common.ts';
+import type { GitHubInboxRpc, NotificationItem } from './common/common.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -62,13 +62,12 @@ export const plugin: Plugin = {
   id: 'github-inbox',
   name: 'GitHub Inbox',
   window: {
-    entry: 'index.html',
+    entry: 'browser/index.html',
     width: 544,
     height: 416,
     minWidth: 440,
     minHeight: 320,
     hideOnClose: true,
-    titleBarStyle: 'hiddenInset',
     vibrancy: 'under-window'
   },
   activate(context) {

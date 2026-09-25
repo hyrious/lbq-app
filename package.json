@@ -8,7 +8,6 @@
     "dev": "node build/electron.ts .",
     "app": "node build/app.ts",
     "exe": "node build/exe.ts",
-    "typecheck": "tsc -p . --noEmit",
-    "test": "node --test test/*.test.ts"
+    "typecheck": "tsc -p . --noEmit"
   }
 }

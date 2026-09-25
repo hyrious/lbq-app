@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Process Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="titlebar">
+    <span class="title">Process Monitor</span>
+    <span id="summary" class="summary"></span>
+  </header>
+  <main class="content">
+    <div id="list" class="list" role="list"></div>
+    <p id="empty" class="empty">正在读取进程…</p>
+  </main>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <script type="module" src="renderer.ts"></script>
+</body>
+</html>

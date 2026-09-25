@@ -38,7 +38,7 @@ export class IpcRouter implements IDisposable {
     const forget = () => this.pluginsByWebContents.delete(webContents.id);
     webContents.once('destroyed', forget);
     return toDisposable(() => {
-      webContents.removeListener('destroyed', forget);
+      if (!webContents.isDestroyed()) webContents.removeListener('destroyed', forget);
       forget();
     });
   }

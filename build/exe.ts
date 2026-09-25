@@ -24,8 +24,6 @@ const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
 // stopped before the distribution can be rebuilt.
 quitRunningApp();
 
-// Rebuild the distribution only when it is missing or was built from another
-// Electron version or icon. Either way the sources are refreshed afterwards.
 if (needsRebuild()) {
   buildDistribution();
 } else {

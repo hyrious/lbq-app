@@ -4,13 +4,13 @@ import { join } from 'node:path';
 
 export const repoRoot = join(import.meta.dirname, '..');
 
-// Files that make up the application, copied verbatim into the packaged app.
-// Adding or deleting a tool does not require updating this list.
+// Copied verbatim into the packaged app. Adding or deleting a tool does not
+// require updating this list.
 export const sourceEntries = ['main.ts', 'package.json', 'tsconfig.json', 'icon.png', 'src', 'tools'];
 
 /**
- * Ensures the Electron cache is populated and returns the absolute path to the
- * Electron executable. `electron.ts --install` prints that path as its last line.
+ * Ensures the Electron cache is populated. `electron.ts --install` prints the
+ * binary path as its last line.
  */
 export function installElectron(): string {
   const output = execFileSync(process.execPath, [join(import.meta.dirname, 'electron.ts'), '--install'], { encoding: 'utf8' });
@@ -29,8 +29,8 @@ export function readStamp(appResources: string): string | undefined {
 }
 
 /**
- * Replaces the packaged sources with the current working tree and writes the
- * version stamp. The stamp records which binary the sources were packaged for.
+ * Replaces the packaged sources and writes the version stamp, which records
+ * which binary the sources were packaged for.
  */
 export function syncSources(appResources: string, stamp: string): void {
   rmSync(appResources, { recursive: true, force: true });

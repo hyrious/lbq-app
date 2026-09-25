@@ -1,11 +1,7 @@
-import type { IpcBridge, RpcRequest, RpcResponse } from '../../src/platform/ipc/common/ipc.ts';
-import type { ImagePortalRpc, ProcessedImage } from './common.ts';
+import { createInvoke, element, getElement, showToast } from 'app-file://shared/renderer.ts';
+import type { ImagePortalRpc, ProcessedImage } from '../common/common.ts';
 
-declare global {
-  interface Window {
-    portal: IpcBridge;
-  }
-}
+const invoke = createInvoke<ImagePortalRpc>();
 
 const dropSurface = getElement<HTMLDivElement>('drop-surface');
 const previewPanel = getElement<HTMLDivElement>('preview-panel');
@@ -14,7 +10,6 @@ const dimension = getElement<HTMLSpanElement>('dimension');
 const scaleInput = getElement<HTMLInputElement>('scale');
 const resizeButton = getElement<HTMLButtonElement>('resize');
 const closeButton = getElement<HTMLButtonElement>('close');
-const toastRegion = getElement<HTMLDivElement>('toasts');
 let currentPath = '';
 let originalSize: ProcessedImage | undefined;
 let previewURL = '';
@@ -80,31 +75,7 @@ function showPreview(result: ProcessedImage) {
   previewPanel.classList.remove('hidden');
 }
 
-function showToast(message: string, tone: 'info' | 'error' = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `toast ${tone}`;
-  toast.textContent = message;
-  toastRegion.append(toast);
-  setTimeout(() => {
-    toast.classList.add('leaving');
-    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-  }, 1600);
-}
-
 function reportError(error: unknown) {
   console.error(error);
   showToast(error instanceof Error ? error.message : String(error), 'error');
-}
-
-async function invoke<K extends Extract<keyof ImagePortalRpc, string>>(
-  method: K,
-  input: RpcRequest<ImagePortalRpc[K]>
-): Promise<RpcResponse<ImagePortalRpc[K]>> {
-  return await window.portal.invoke(method, input) as RpcResponse<ImagePortalRpc[K]>;
-}
-
-function getElement<T extends HTMLElement>(id: string): T {
-  const element = document.getElementById(id);
-  if (!element) throw new Error(`缺少 #${id}`);
-  return element as T;
 }

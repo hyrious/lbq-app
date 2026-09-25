@@ -1,13 +1,13 @@
+import { clipboard, ClipboardItem, nativeImage } from 'electron';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { clipboard, ClipboardItem, nativeImage } from 'electron';
-import { createServiceIdentifier } from '../../src/platform/instantiation/common/instantiation.ts';
 import { toNonEmptyString } from '../../src/base/common/types.ts';
+import { createServiceIdentifier } from '../../src/platform/instantiation/common/instantiation.ts';
 import type { Plugin } from '../../src/runtime/electron-main/plugin.ts';
-import type { ImagePortalRpc, ImageRequest, ProcessedImage } from './common.ts';
+import type { ImagePortalRpc, ImageRequest, ProcessedImage } from './common/common.ts';
 
 const execFileAsync = promisify(execFile);
 const IImageService = createServiceIdentifier<ImageService>('imagePortal.imageService');
@@ -60,13 +60,12 @@ export const plugin: Plugin = {
   id: 'image-portal',
   name: 'Image Portal',
   window: {
-    entry: 'index.html',
+    entry: 'browser/index.html',
     width: 320,
     height: 320,
     minWidth: 320,
     minHeight: 320,
     hideOnClose: true,
-    titleBarStyle: 'hiddenInset',
     vibrancy: 'under-window'
   },
   activate(context) {

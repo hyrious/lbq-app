@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('portal', {
 
 const platform = process.platform;
 function applyPlatformAttribute() {
+  if (!document.documentElement) return;
   document.documentElement.dataset.platform = platform;
 }
 if (document.documentElement) applyPlatformAttribute();

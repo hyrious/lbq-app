@@ -1,8 +1,8 @@
+import { execFileSync, spawn } from 'node:child_process';
 import { createWriteStream, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { chmod, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { execFileSync, spawn } from 'node:child_process';
 
 // Remove warning on `shell: true` usage on Windows.
 process.removeAllListeners('warning');

@@ -3,6 +3,8 @@ html, body { height: 100%; }
 body {
   margin: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   color: CanvasText;
   background: transparent;
   font-family: system-ui, sans-serif;
@@ -10,22 +12,7 @@ body {
   user-select: none;
 }
 button { color: inherit; font: inherit; }
-.titlebar {
-  display: none;
-  height: 38px;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 500;
-  opacity: .72;
-  -webkit-app-region: drag;
-}
-html[data-platform='darwin'] .titlebar { display: flex; }
-main { height: 100%; }
-html[data-platform='darwin'] main { height: calc(100% - 38px); }
-/* 仅在没有原生标题栏（darwin）时为窗口内标题栏预留高度 */
-:root { --titlebar-height: 0px; }
-html[data-platform='darwin'] { --titlebar-height: 38px; }
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .inbox { height: 100%; display: flex; flex-direction: column; }
 .selection-bar {
   flex: none;

@@ -9,7 +9,6 @@ export interface PluginWindowOptions {
   readonly minWidth?: number;
   readonly minHeight?: number;
   readonly hideOnClose?: boolean;
-  readonly titleBarStyle?: 'default' | 'hidden' | 'hiddenInset';
   readonly vibrancy?: 'under-window' | 'sidebar' | 'menu' | 'popover';
 }
 
