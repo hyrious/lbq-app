@@ -18,7 +18,7 @@ const electronBinary = installElectron();
 const electronRoot = join(electronBinary, '..');
 const electronVersion = readFileSync(join(electronRoot, 'version'), 'utf8').trim();
 const iconHash = hash('sha256', readFileSync(join(repoRoot, 'icon.png')));
-const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
+const stamp = `electron ${electronVersion}\nicon ${iconHash}\nname ${productName}`;
 
 // The running app holds the executable and its icon open, so it must be
 // stopped before the distribution can be rebuilt.
@@ -47,7 +47,16 @@ function buildDistribution() {
 
   const iconPath = join(destination, 'icon.ico');
   makeIcon(iconPath);
-  exec('rcedit', [executablePath, '--set-icon', iconPath]);
+  exec('rcedit', [
+    executablePath,
+    '--set-icon', iconPath,
+    '--set-version-string', 'FileDescription', productName,
+    '--set-version-string', 'ProductName', productName,
+    '--set-version-string', 'CompanyName', productName,
+    '--set-version-string', 'LegalCopyright', productName,
+    '--set-file-version', electronVersion,
+    '--set-product-version', electronVersion
+  ]);
 }
 
 /** Renders icon.png into a multi-size .ico using Pillow from the local Python. */
