@@ -84,6 +84,7 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
 .notification-icon.draft, .notification-icon.not-planned { color: light-dark(#656d76, #8c959f); }
 .notification:hover, .notification.current { background: color-mix(in srgb, CanvasText 7%, transparent); }
 .notification:not(.unread) .notification-content { opacity: .52; }
+.notification:not(.unread) .notification-content .notification-title { font-weight: normal; }
 .notification:hover .notification-content { opacity: 1; }
 .notification-content {
   position: relative;

@@ -49,6 +49,7 @@ export interface SubjectDetail {
   comments: Comment[];
   draft?: boolean;
   merged?: boolean;
+  canMerge?: boolean;
   headSha?: string;
   headLabel?: string;
   baseLabel?: string;

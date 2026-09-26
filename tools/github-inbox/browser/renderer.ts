@@ -213,8 +213,23 @@ class GitHubClient {
     }
     const base = `/repos/${encodeURIComponent(item.owner)}/${encodeURIComponent(item.repo)}`;
     const path = item.kind == 'PullRequest' ? `${base}/pulls/${item.number}` : `${base}/issues/${item.number}`;
-    const detail = await this.request(path);
-    return this.toDetail(item.kind, item.repository, item.number, detail);
+    const [detail, canMerge] = await Promise.all([
+      this.request(path),
+      item.kind == 'PullRequest' ? this.fetchCanMerge(base) : Promise.resolve(undefined)
+    ]);
+    const result = this.toDetail(item.kind, item.repository, item.number, detail);
+    result.canMerge = canMerge;
+    return result;
+  }
+
+  private async fetchCanMerge(base: string): Promise<boolean> {
+    try {
+      const repo = plainObject(await this.request(base));
+      const permissions = plainObject(repo?.permissions);
+      return permissions?.push == true || permissions?.maintain == true || permissions?.admin == true;
+    } catch {
+      return false;
+    }
   }
 
   private async fetchComments(item: NotificationItem, detail: SubjectDetail, onUpdate: () => void): Promise<void> {
@@ -860,7 +875,7 @@ function renderDetail(detail: SubjectDetail, loadingComments = false) {
   title.append(element('span', 'subject-title', detail.title));
   const actions = document.createElement('div');
   actions.className = 'subject-actions';
-  if (detail.kind == 'PullRequest' && detail.state == 'open' && !detail.merged && detail.headSha) {
+  if (detail.kind == 'PullRequest' && detail.state == 'open' && !detail.merged && detail.headSha && detail.canMerge) {
     const mergeButton = element('button', 'merge', 'Squash 合并');
     mergeButton.onclick = () => void squashMerge(detail, mergeButton);
     actions.append(mergeButton);
