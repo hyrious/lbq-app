@@ -59,6 +59,7 @@ class ImageService {
 export const plugin: Plugin = {
   id: 'image-portal',
   name: 'Image Portal',
+  platform: 'darwin',
   window: {
     entry: 'browser/index.html',
     width: 320,
