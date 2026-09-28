@@ -37,6 +37,7 @@ input[type='checkbox'] { width: 15px; height: 15px; margin: 0; accent-color: Acc
   cursor: pointer;
 }
 .select-all + .selection-action { margin-left: auto; }
+.selection-action iconify-icon { display: block; flex: none; width: 13px; height: 13px; }
 .selection-action:hover { background: color-mix(in srgb, CanvasText 14%, transparent); }
 .selection-action:disabled { opacity: .5; }
 .status {
