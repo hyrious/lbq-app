@@ -31,7 +31,6 @@ async function installElectron() {
   if (existsSync(binaryPath)) return;
 
   const zipName = getZipName();
-  const downloadURL = `https://github.com/electron/electron/releases/download/v${electronVersion}/${zipName}`;
   const zipPath = join(cacheRoot, zipName);
   const extractPath = join(cacheRoot, `v${electronVersion}`);
   const tempZipPath = zipPath + '.tmp';
@@ -39,9 +38,16 @@ async function installElectron() {
 
   mkdirSync(cacheRoot, { recursive: true });
 
-  console.error(`Downloading ${downloadURL}`);
   rmSync(tempZipPath, { force: true });
-  await downloadFile(downloadURL, tempZipPath);
+  const mirrorURL = getMirrorURL(zipName);
+  console.error(`Downloading ${mirrorURL}`);
+  try {
+    await downloadFile(mirrorURL, tempZipPath);
+  } catch (error) {
+    const fallbackURL = getFallbackURL(zipName);
+    console.warn(`${String(error)}; retrying with ${fallbackURL}`);
+    await downloadFile(fallbackURL, tempZipPath);
+  }
   await rename(tempZipPath, zipPath);
 
   rmSync(tempExtractPath, { recursive: true, force: true });
@@ -82,6 +88,15 @@ function getUnzipArgs(zipPath: string, extractPath: string) {
 
 function quote(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
+}
+
+function getMirrorURL(zipName: string) {
+  const mirror = process.env.ELECTRON_MIRROR?.replace(/\/+$/, '');
+  return `${mirror ?? 'https://github.com/electron/electron/releases/download'}/v${electronVersion}/${zipName}`;
+}
+
+function getFallbackURL(zipName: string) {
+  return `https://github.com/electron/electron/releases/download/v${electronVersion}/${zipName}`;
 }
 
 async function downloadFile(url: string, file: string) {
