@@ -67,11 +67,17 @@ export class WindowService {
     store.add(toDisposable(() => window.webContents.removeListener('dom-ready', injectChrome)));
 
     window.webContents.on('before-input-event', (event, input) => {
-      if (input.type == 'keyDown') {
-        if (input.key == 'F12') {
-          event.preventDefault();
-          window.webContents.toggleDevTools();
-        }
+      if (input.type != 'keyDown') return;
+      if (input.key == 'F12') {
+        event.preventDefault();
+        window.webContents.toggleDevTools();
+        return;
+      }
+      // primary = Command on macOS, Control elsewhere
+      const primary = process.platform == 'darwin' ? input.meta : input.control;
+      if (primary && !input.alt && !input.shift && input.key.toLowerCase() == 'w') {
+        event.preventDefault();
+        window.close();
       }
     });
 
