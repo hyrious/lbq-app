@@ -44,9 +44,21 @@ async function start(): Promise<void> {
   const disposables = new DisposableStore();
   app.on('before-quit', () => disposables.dispose());
   const template: Electron.MenuItemConstructorOptions[] = [
-    { label: '刷新', role: 'reload' },
-    { label: '开发者工具', role: 'toggleDevTools' },
+    {
+      label: '文件',
+      submenu: [
+        { label: '关闭窗口', role: 'close', accelerator: 'CommandOrControl+W' },
+      ]
+    },
+    {
+      label: '视图',
+      submenu: [
+        { label: '刷新', role: 'reload' },
+        { label: '开发者工具', role: 'toggleDevTools' },
+      ]
+    },
   ];
+  if (process.platform == 'darwin') template.unshift({ role: 'appMenu' });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   app.dock?.hide();
 

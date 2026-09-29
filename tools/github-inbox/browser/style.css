@@ -13,7 +13,16 @@ body {
 }
 button { color: inherit; font: inherit; }
 main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.inbox { height: 100%; display: flex; flex-direction: column; }
+.inbox { flex: 1; min-height: 100px; display: flex; flex-direction: column; }
+#repos-divider {
+  flex: none;
+  height: 5px;
+  cursor: row-resize;
+  touch-action: none;
+  background: linear-gradient(to bottom, transparent 2px, color-mix(in srgb, CanvasText 10%, transparent) 2px 3px, transparent 3px);
+}
+#repos-divider:hover, body.resizing-repos #repos-divider { background: color-mix(in srgb, CanvasText 15%, transparent); }
+body.resizing-repos, body.resizing-repos * { cursor: row-resize !important; }
 .selection-bar {
   flex: none;
   height: 26px;

@@ -50,7 +50,7 @@ if (existsSync(electronPackagePath)) {
 console.log('Done.');
 
 async function downloadNodeModules(name: string, version: string, files?: string[], recursive?: boolean) {
-  if (files ? files.every(file => existsSync(join(repoRoot, 'node_modules', name, file))) : existsSync(join(repoRoot, 'node_modules', name))) {
+  if (!files && existsSync(join(repoRoot, 'node_modules', name))) {
     console.info(`node_modules/${name} already exists, skipping download.`);
     return;
   }

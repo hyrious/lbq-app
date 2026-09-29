@@ -1,6 +1,6 @@
 import { app } from 'electron';
-import { existsSync } from 'node:fs';
-import { readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { existsSync, renameSync, writeFileSync } from 'node:fs';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DisposableStore, type IDisposable } from '../../base/common/lifecycle.ts';
@@ -41,7 +41,6 @@ export class PluginService implements IDisposable {
   private readonly windowStatePath: string;
   private readonly temporaryWindowStatePath: string;
   private readonly restorableIds = new Set<string>();
-  private stateWrite = Promise.resolve();
   private disposing = false;
   readonly onDidChangePlugins: Event<readonly PluginInfo[]> = this.onDidChangePluginsEmitter.event;
 
@@ -185,11 +184,13 @@ export class PluginService implements IDisposable {
 
   private saveRestorableIds(): void {
     const contents = JSON.stringify({ version: 1, ids: [...this.restorableIds] });
-    const nextWrite = this.stateWrite.then(async () => {
-      await writeFile(this.temporaryWindowStatePath, contents);
-      await rename(this.temporaryWindowStatePath, this.windowStatePath);
-    });
-    this.stateWrite = nextWrite.catch(error => console.error('Failed to save restorable plugin windows.', error));
+    // Electron can quit immediately after a window changes state.
+    try {
+      writeFileSync(this.temporaryWindowStatePath, contents);
+      renameSync(this.temporaryWindowStatePath, this.windowStatePath);
+    } catch (error) {
+      console.error('Failed to save restorable plugin windows.', error);
+    }
   }
 
   private assertPlugin(value: unknown, directory: string): Plugin {

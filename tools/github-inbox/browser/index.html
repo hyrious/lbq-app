@@ -7,6 +7,7 @@
   <title>GitHub Inbox</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@hyrious/github-markdown-css@0.2.4/github-markdown.css">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../repos/browser/style.css">
 </head>
 <body>
   <header class="titlebar">
@@ -28,6 +29,31 @@
       <div id="inbox-status" class="status">正在加载…</div>
       <div id="notifications" class="notifications" role="list"></div>
     </section>
+    <div id="repos-divider" role="separator" aria-label="调整仓库区域高度" aria-orientation="horizontal"></div>
+    <section id="repos" aria-label="本地仓库">
+      <div class="toolbar">
+        <div id="repos-result" class="result">
+          <button id="repos-result-toggle" class="result-toggle" type="button" aria-expanded="false" aria-controls="repos-result-panel" disabled>
+            <span id="repos-result-title" role="status" aria-live="polite">暂无执行记录</span>
+          </button>
+          <button id="repos-copy" class="icon-button" type="button" data-tooltip="复制" aria-label="复制执行结果" hidden>
+            <iconify-icon class="copy-icon" icon="carbon:copy" aria-hidden="true"></iconify-icon>
+            <iconify-icon class="copied-icon" icon="carbon:checkmark" aria-hidden="true"></iconify-icon>
+          </button>
+          <span id="repos-copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+          <section id="repos-result-panel" class="result-panel" aria-label="执行详情" hidden>
+            <pre id="repos-output"></pre>
+          </section>
+        </div>
+        <button id="repos-add" class="icon-button add" type="button" aria-label="添加项目" data-tooltip="选择 Git 项目文件夹">
+          <iconify-icon icon="carbon:add" aria-hidden="true"></iconify-icon>
+        </button>
+      </div>
+      <div class="content">
+        <div id="repos-list"></div>
+        <p id="repos-empty">正在读取…</p>
+      </div>
+    </section>
     <div id="detail-scrim" class="detail-scrim" aria-hidden="true"></div>
     <section id="detail" class="detail" aria-hidden="true"></section>
     <div id="diff-scrim" class="diff-scrim" aria-hidden="true"></div>
@@ -35,5 +61,6 @@
   </main>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <script type="module" src="renderer.ts"></script>
+  <script type="module" src="../repos/browser/renderer.ts"></script>
 </body>
 </html>

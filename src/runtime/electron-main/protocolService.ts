@@ -57,7 +57,7 @@ export class ProtocolService implements IDisposable {
           : 'Only common, browser, and electron-browser sources are available.');
     }
 
-    if (!/^[a-z0-9-]+$/.test(url.hostname)) return new Response('Invalid plugin identifier.', { status: 400 });
+    if (!/^_?[a-z0-9-]+$/.test(url.hostname)) return new Response('Invalid plugin identifier.', { status: 400 });
 
     return this.serveWithin(resolve(this.toolsRoot, url.hostname), url.pathname, request, 'plugin');
   }

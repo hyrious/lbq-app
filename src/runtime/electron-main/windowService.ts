@@ -73,12 +73,6 @@ export class WindowService {
         window.webContents.toggleDevTools();
         return;
       }
-      // primary = Command on macOS, Control elsewhere
-      const primary = process.platform == 'darwin' ? input.meta : input.control;
-      if (primary && !input.alt && !input.shift && input.key.toLowerCase() == 'w') {
-        event.preventDefault();
-        window.close();
-      }
     });
 
     let saveTimeout: NodeJS.Timeout | undefined;

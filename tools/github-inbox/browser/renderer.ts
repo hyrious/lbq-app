@@ -1,6 +1,7 @@
 import { createInvoke, element, getElement, showToast } from 'app-file://shared/renderer.ts';
 import { bestScore, highlight } from 'app-file://shared/quick-match.ts';
 import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from '../common/common.ts';
+import './splitter.ts';
 
 const invoke = createInvoke<GitHubInboxRpc>();
 
@@ -688,6 +689,7 @@ function renderSelectionBar() {
 
 function handleShortcut(event: KeyboardEvent): void {
   if (event.defaultPrevented) return;
+  if (event.target instanceof Element && event.target.closest('#repos')) return;
   if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() == 'p'
     && diffPanel.classList.contains('open')) {
     event.preventDefault();

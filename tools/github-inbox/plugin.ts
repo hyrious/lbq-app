@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { toNonEmptyString, toPlainObject } from '../../src/base/common/types.ts';
 import type { Plugin } from '../../src/runtime/electron-main/plugin.ts';
 import type { GitHubInboxRpc, NotificationItem } from './common/common.ts';
+import { registerRepos } from './repos/register.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -71,6 +72,7 @@ export const plugin: Plugin = {
     vibrancy: 'under-window'
   },
   activate(context) {
+    registerRepos(context);
     const inbox = new InboxStore(join(app.getPath('userData'), 'github-inbox.json'));
     context.bindIpc<GitHubInboxRpc>({
       getToken: () => getToken(),

@@ -30,6 +30,8 @@ const electronVersion = execFileSync('plutil', ['-extract', 'CFBundleShortVersio
 const iconHash = hash('sha256', readFileSync(join(repoRoot, 'icon.png')));
 const stamp = `electron ${electronVersion}\nicon ${iconHash}`;
 
+quitRunningApp();
+
 // The signature seals the resources, so re-signing must happen after the copy.
 const rebuilt = needsRebuild();
 if (rebuilt) {
@@ -42,7 +44,6 @@ syncSources(appResources, stamp);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
 refreshLaunchServices();
-quitRunningApp();
 exec('open', [destination]);
 
 function needsRebuild(): boolean {
