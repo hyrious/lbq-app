@@ -2,6 +2,7 @@ import { createInvoke, element, getElement, showToast } from 'app-file://shared/
 import { bestScore, highlight } from 'app-file://shared/quick-match.ts';
 import type { Comment, GitHubInboxRpc, NotificationItem, SubjectDetail, SubjectStatus } from '../common/common.ts';
 import './splitter.ts';
+import './pr-connections.ts';
 
 const invoke = createInvoke<GitHubInboxRpc>();
 
@@ -608,6 +609,8 @@ function createNotificationRow(): HTMLDivElement {
 
 function updateNotificationRow(row: HTMLDivElement, item: NotificationItem): void {
   row.dataset.notificationId = item.id;
+  if (item.kind == 'PullRequest') row.dataset.prUrl = item.url.toLowerCase().replace(/\/$/, '');
+  else delete row.dataset.prUrl;
   const opening = openingIds.has(item.id);
   const completing = completingIds.has(item.id);
   row.className = `notification${item.id == selectedId ? ' current' : ''}${item.unread ? ' unread' : ''}${opening ? ' opening' : ''}`;

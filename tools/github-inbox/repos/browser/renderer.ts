@@ -434,6 +434,8 @@ function createRepoRow(repo: Repository): RepoRow {
     updateAvatar(repo.name.includes('/') ? repo.name.split('/')[0].toLowerCase() : '');
     const pr = repo.pullRequest;
     prButton.hidden = !pr;
+    if (pr) prButton.dataset.prUrl = pr.url.toLowerCase().replace(/\/$/, '');
+    else delete prButton.dataset.prUrl;
     if (pr) {
       prButton.className = `icon-button ${pr.isDraft ? 'muted' : 'ahead'}`;
       prButton.querySelector('iconify-icon')!.setAttribute('icon', pr.isDraft ? 'octicon:git-pull-request-draft-16' : 'octicon:git-pull-request-16');
