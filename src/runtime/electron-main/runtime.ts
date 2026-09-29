@@ -1,6 +1,6 @@
 import { app, dialog, Menu, protocol } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
-import { register, stripTypeScriptTypes } from 'node:module';
+import { registerHooks, stripTypeScriptTypes } from 'node:module';
 import { join, resolve } from 'node:path';
 import { DisposableStore } from '../../base/common/lifecycle.ts';
 import { InstantiationService } from '../../platform/instantiation/common/instantiation.ts';
@@ -15,7 +15,13 @@ const applicationRoot = resolve(import.meta.dirname, '../../..');
 const toolsRoot = join(applicationRoot, 'tools');
 let pluginService: PluginService | undefined;
 
-register('data:text/javascript,export async function resolve(r,t,n){if(r==="fs"){return{format:"builtin",shortCircuit:true,url:"node:original-fs"}}return n(r,t)}', import.meta.url);
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === 'fs') return { format: 'builtin', shortCircuit: true, url: 'node:original-fs' };
+    return nextResolve(specifier, context);
+  }
+});
+
 protocol.registerSchemesAsPrivileged([{
   scheme: 'app-file',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, codeCache: app.isPackaged }
