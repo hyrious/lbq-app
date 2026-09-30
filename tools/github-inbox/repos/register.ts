@@ -10,6 +10,7 @@ export function registerRepos(context: PluginContext): void {
   const avatars = new AvatarCache(join(app.getPath('userData'), 'repos-avatars'), url =>
     net.fetch(url, { signal: AbortSignal.timeout(15000) }));
   context.bindIpc<ReposRpc>({
+    reposOpenItems: input => repos.listOpenItems(input),
     reposHome: () => app.getPath('home'),
     reposList: () => repos.list(),
     reposAvatar: owner => avatars.get(owner),
@@ -28,10 +29,10 @@ export function registerRepos(context: PluginContext): void {
     },
     reposRemove: input => repos.remove(input),
     reposReorder: input => repos.reorder(input),
-    reposOpenPullRequest: async input => {
+    reposOpenItem: async input => {
       const url = new URL(input);
-      if (url.protocol != 'https:' || url.hostname != 'github.com' || !/^\/[^/]+\/[^/]+\/pull\/\d+$/.test(url.pathname)) {
-        throw new Error('PR 地址无效');
+      if (url.protocol != 'https:' || url.hostname != 'github.com' || !/^\/[^/]+\/[^/]+\/(pull|issues)\/\d+$/.test(url.pathname)) {
+        throw new Error('GitHub 地址无效');
       }
       await shell.openExternal(url.href);
     },

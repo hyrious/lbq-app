@@ -14,6 +14,22 @@ export interface Repository {
   fetchedAt: number;
   error: string;
   pullRequest: PullRequest | undefined;
+  openCounts: OpenCounts | undefined;
+}
+
+export interface OpenCounts {
+  pulls: number;
+  issues: number;
+}
+
+export interface OpenItem {
+  number: number;
+  title: string;
+  url: string;
+  author: string;
+  updatedAt: string;
+  isPullRequest: boolean;
+  isDraft: boolean;
 }
 
 export interface PullRequest {
@@ -49,13 +65,14 @@ export function initialCommand(action: Action, path: string): string {
 }
 
 export interface ReposRpc {
+  reposOpenItems: RpcMethod<string, OpenItem[]>;
   reposHome: RpcMethod<undefined, string>;
   reposAvatar: RpcMethod<string, string>;
   reposList: RpcMethod<undefined, Repository[]>;
   reposAdd: RpcMethod<undefined, string | undefined>;
   reposRemove: RpcMethod<string, void>;
   reposReorder: RpcMethod<string[], void>;
-  reposOpenPullRequest: RpcMethod<string, void>;
+  reposOpenItem: RpcMethod<string, void>;
   reposRun: RpcMethod<ActionRequest, CommandResult>;
   reposCopy: RpcMethod<string, void>;
 }

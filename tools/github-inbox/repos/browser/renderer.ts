@@ -1,10 +1,12 @@
 import { createInvoke, element, getElement } from 'app-file://shared/renderer.ts';
 import { initialCommand, type Action, type Repository, type ReposRpc } from '../common/common.ts';
+import { OpenItemsPanel } from './openItems.ts';
 import { RepoSorting } from './sorting.ts';
 import { Tooltips } from './tooltips.ts';
 
 const root = getElement('repos');
 const tooltips = new Tooltips(root);
+const openItems = new OpenItemsPanel(root);
 
 const invoke = createInvoke<ReposRpc>();
 const home = await invoke('reposHome', undefined);
@@ -322,7 +324,6 @@ function createRepoRow(repo: Repository): RepoRow {
   const name = element('button', 'name');
   name.type = 'button';
   name.onclick = () => void run(repo, 'open');
-  const branch = element('span', 'branch');
   const dirty = element('span', 'workspace');
   const sync = element('span', 'sync');
   const editor = iconButton('simple-icons:sublimetext', 'subl <dir>');
@@ -332,7 +333,6 @@ function createRepoRow(repo: Repository): RepoRow {
   const terminal = iconButton('terminal', window.portal.platform == 'win32' ? 'Windows Terminal' : 'iTerm2');
   terminal.onclick = () => void run(repo, 'terminal');
   const identity = element('div', 'identity');
-  identity.append(dragHandle, name, branch, editor, terminal);
   const states = element('div', 'states');
   states.append(dirty, sync);
   const actions = element('div', 'actions');
@@ -340,12 +340,19 @@ function createRepoRow(repo: Repository): RepoRow {
   prButton.onclick = async () => {
     if (!repo.pullRequest) return;
     try {
-      await invoke('reposOpenPullRequest', repo.pullRequest.url);
+      await invoke('reposOpenItem', repo.pullRequest.url);
     } catch (error) {
       result('无法打开 PR', String(error), true);
     }
   };
-  actions.append(prButton);
+  const openButton = iconButton('octicon:inbox-16', 'PR / Issue');
+  openButton.classList.add('open-items-button');
+  openButton.setAttribute('aria-haspopup', 'dialog');
+  const badge = element('span', 'open-items-badge');
+  openButton.append(badge);
+  openButton.onclick = () => openItems.open(repo);
+  identity.append(dragHandle, name, openButton, prButton);
+  actions.append(editor, terminal);
   const actionButtons = gitActions.map(action => {
     const button = iconButton(action.icon, action.label);
     button.onclick = () => void run(repo, action.id);
@@ -410,13 +417,11 @@ function createRepoRow(repo: Repository): RepoRow {
     name.textContent = repo.name;
     name.disabled = pending;
     name.classList.toggle('error', !!repo.error);
+    name.classList.toggle('dirty', !repo.error && !!repo.branch && repo.branch != 'main' && repo.branch != 'master');
     name.setAttribute('aria-label', `smerge ${repo.name}`);
     const fetched = repo.fetchedAt ? new Date(repo.fetchedAt).toLocaleString() : '无记录';
     name.dataset.tooltip = displayPath(`smerge ${repo.path}\n分支：${repo.branch || '未知'}\n最近 fetch：${fetched}`);
     if (repo.error) name.dataset.tooltip += `\n${displayPath(repo.error)}`;
-    branch.textContent = repo.branch;
-    branch.dataset.tooltip = repo.branch;
-    branch.hidden = !repo.branch || repo.branch == 'main' || repo.branch == 'master';
     dirty.textContent = repo.error ? '读取失败' : repo.changed ? `${repo.changed} 文件` : '';
     dirty.className = repo.error ? 'workspace error' : 'workspace dirty';
     dirty.dataset.tooltip = repo.error ? displayPath(repo.error) : repo.changed ? '包含暂存、未暂存和未跟踪文件' : '干净';
@@ -432,6 +437,14 @@ function createRepoRow(repo: Repository): RepoRow {
     states.hidden = dirty.hidden && sync.hidden;
     editor.disabled = terminal.disabled = remove.disabled = pending;
     updateAvatar(repo.name.includes('/') ? repo.name.split('/')[0].toLowerCase() : '');
+    const counts = repo.openCounts;
+    const pulls = counts?.pulls ?? 0;
+    const issues = counts?.issues ?? 0;
+    openButton.hidden = !pulls && !issues;
+    badge.textContent = pulls && issues ? `${pulls}/${issues}` : String(pulls || issues);
+    badge.className = `open-items-badge ${pulls && issues ? 'mixed' : pulls ? 'pulls' : 'issues'}`;
+    openButton.dataset.tooltip = pulls && issues ? `${pulls} PR / ${issues} Issue` : pulls ? `${pulls} PR` : `${issues} Issue`;
+    openButton.setAttribute('aria-label', `${repo.name}: ${pulls} Open PR, ${issues} Open Issue`);
     const pr = repo.pullRequest;
     prButton.hidden = !pr;
     if (pr) prButton.dataset.prUrl = pr.url.toLowerCase().replace(/\/$/, '');

@@ -3,6 +3,7 @@ import { readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { commandText, type Action, type CommandResult, type Repository } from '../common/common.ts';
+import { OpenItems } from './openItems.ts';
 import { PullRequests } from './pullRequests.ts';
 
 const exec = promisify(execFile);
@@ -27,7 +28,8 @@ export async function snapshot(path: string): Promise<Repository> {
     behind: 0,
     fetchedAt: 0,
     error: '',
-    pullRequest: undefined
+    pullRequest: undefined,
+    openCounts: undefined
   };
   try {
     const remotes = (await git(path, 'remote')).trim().split('\n').filter(Boolean);
@@ -83,6 +85,7 @@ interface ReposData {
 }
 
 export class Repos {
+  private readonly openItems = new OpenItems();
   private readonly pullRequests = new PullRequests();
   private readonly busy = new Set<string>();
   private write = Promise.resolve();
@@ -117,8 +120,16 @@ export class Repos {
   async list(): Promise<Repository[]> {
     await this.write;
     const repos = await Promise.all((await this.paths()).map(snapshot));
-    for (const repo of repos) repo.pullRequest = this.pullRequests.get(repo);
+    for (const repo of repos) {
+      repo.pullRequest = this.pullRequests.get(repo);
+      repo.openCounts = this.openItems.get(repo);
+    }
     return repos;
+  }
+
+  async listOpenItems(path: string) {
+    if (!(await this.paths()).includes(path)) throw new Error('项目不在列表中');
+    return this.openItems.list(await snapshot(path));
   }
 
   private update(change: (paths: string[]) => string[], lastDirectory?: string): Promise<void> {

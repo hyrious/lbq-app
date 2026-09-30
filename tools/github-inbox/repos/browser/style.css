@@ -73,16 +73,19 @@
   .avatar { position: static; width: 18px; height: 18px; border-radius: 3px; object-fit: cover; }
   .name { min-width: 0; flex: 0 1 auto; padding: 4px 0; margin-right: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 12px; }
   .name:hover { background: transparent; }
-  .branch { min-width: 0; max-width: 40%; margin-right: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, CanvasText 50%, transparent); font-size: 11px; }
   .name:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
-  .identity .icon-button { color: color-mix(in srgb, CanvasText 65%, transparent); }
+  .identity .icon-button:not(.ahead) { color: color-mix(in srgb, CanvasText 65%, transparent); }
   .states { display: flex; flex: none; align-items: center; gap: 8px; }
   .workspace, .sync { text-align: right; white-space: nowrap; font-size: 11px; font-variant-numeric: tabular-nums; }
   .muted { color: color-mix(in srgb, CanvasText 50%, transparent); }
   .dirty { color: light-dark(#885700, #e2b565); }
   .ahead { color: light-dark(#1a7f37, #3fb950); }
   .error { color: light-dark(#cf222e, #f85149); }
-  .actions { display: flex; flex: none; gap: 1px; color: color-mix(in srgb, CanvasText 65%, transparent); }
+  .actions { display: flex; flex: none; gap: 1px; color: color-mix(in srgb, CanvasText 65%, transparent); opacity: 0; pointer-events: none; }
+  .repo:is(:hover, :focus-within) .actions { opacity: 1; pointer-events: auto; }
+  @media (hover: none) {
+    .actions { opacity: 1; pointer-events: auto; }
+  }
   .remove { color: color-mix(in srgb, CanvasText 40%, transparent); }
   .remove:hover { color: CanvasText; }
   #repos-empty { text-align: center; margin: 40px 0; color: color-mix(in srgb, CanvasText 55%, transparent); }
@@ -106,4 +109,34 @@
     pointer-events: none;
   }
   [hidden] { display: none; }
+}
+
+@scope (#repos) {
+  .open-items-button { display: flex; gap: 2px; width: auto; padding: 0 4px; margin-right: 4px; }
+  .open-items-button[hidden] { display: none; }
+  .open-items-badge { font-size: 9px; line-height: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
+  .open-items-badge.pulls { color: light-dark(#1a7f37, #3fb950); }
+  .open-items-badge.issues { color: light-dark(#885700, #e2b565); }
+  .open-items-badge.mixed { color: color-mix(in srgb, CanvasText 70%, transparent); }
+  .open-items-panel { position: fixed; inset: var(--titlebar-height) 0 0 auto; box-sizing: border-box; width: 88%; max-width: none; height: calc(100% - var(--titlebar-height)); max-height: none; margin: 0; padding: 0; border: 0; color: CanvasText; background: Canvas; box-shadow: -8px 0 24px rgba(0, 0, 0, .18); font: 12px system-ui, sans-serif; }
+  .open-items-panel {
+    transform: translateX(100%);
+    transition: transform .18s ease, display .18s allow-discrete, overlay .18s allow-discrete;
+  }
+  .open-items-panel[open] { display: flex; flex-direction: column; transform: translateX(0); }
+  @starting-style {
+    .open-items-panel[open] { transform: translateX(100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .open-items-panel { transition: none; }
+  }
+  .open-items-panel::backdrop { background: transparent; }
+  .open-items-header { display: flex; flex: none; align-items: center; gap: 8px; padding: 10px 8px; border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent); }
+  .open-items-header strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .open-items-content { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 8px; }
+  .open-items-message { padding: 12px 6px; color: color-mix(in srgb, CanvasText 65%, transparent); }
+  .open-item { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .open-item:hover { background: color-mix(in srgb, CanvasText 7%, transparent); }
+  .open-item:focus-visible { outline: 2px solid AccentColor; outline-offset: -2px; }
+  .open-item:hover .notification-repo { opacity: .82; }
 }
