@@ -46,7 +46,8 @@ async function getToken(): Promise<string> {
     const token = stdout.trim();
     if (!token) throw new Error('empty token');
     return token;
-  } catch {
+  } catch (error) {
+    if (error.code == 'ENOENT') throw new Error('未找到 GitHub CLI（gh）。请确认已安装，并在 shell 的 PATH 中。');
     throw new Error('未找到 GitHub 登录。请先运行 gh auth login。');
   }
 }

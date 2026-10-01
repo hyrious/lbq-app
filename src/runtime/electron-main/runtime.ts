@@ -8,6 +8,7 @@ import { IpcRouter } from '../../platform/ipc/electron-main/ipcRouter.ts';
 import { productName } from '../../product.ts';
 import { PluginService } from './pluginService.ts';
 import { ProtocolService } from './protocolService.ts';
+import { restoreShellPath } from './shellPath.ts';
 import { TrayService } from './trayService.ts';
 import { WindowService } from './windowService.ts';
 
@@ -47,6 +48,7 @@ export function runApplication(): void {
 }
 
 async function start(): Promise<void> {
+  await restoreShellPath();
   const disposables = new DisposableStore();
   app.on('before-quit', () => disposables.dispose());
   const template: Electron.MenuItemConstructorOptions[] = [
