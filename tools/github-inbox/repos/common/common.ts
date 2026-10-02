@@ -1,6 +1,6 @@
 import type { RpcMethod } from '../../../../src/platform/ipc/common/ipc.ts';
 
-export type Action = 'pull' | 'clean' | 'open' | 'terminal' | 'sublime' | 'vscode';
+export type Action = 'fetch' | 'pull' | 'clean' | 'open' | 'terminal' | 'sublime' | 'vscode';
 
 export interface Repository {
   path: string;
@@ -59,6 +59,7 @@ export function initialCommand(action: Action, path: string): string {
   if (action == 'sublime') return commandText('subl', [path]);
   if (action == 'vscode') return commandText('code', [path]);
   if (action == 'terminal') return '';
+  if (action == 'fetch') return 'git fetch --all --prune --jobs=8';
   if (action == 'pull') return 'git pull --prune';
   if (action == 'clean') return 'git fetch --all --tags --prune --jobs=10';
   throw new Error('未知操作');

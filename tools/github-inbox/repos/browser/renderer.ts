@@ -19,6 +19,7 @@ function displayPath(value: string): string {
 const list = getElement('repos-list');
 const empty = getElement('repos-empty');
 const add = getElement<HTMLButtonElement>('repos-add');
+const fetchButton = getElement<HTMLButtonElement>('repos-fetch');
 const resultToggle = getElement<HTMLButtonElement>('repos-result-toggle');
 const resultPanel = getElement('repos-result-panel');
 const copy = getElement<HTMLButtonElement>('repos-copy');
@@ -230,11 +231,46 @@ add.onclick = async () => {
     add.disabled = false;
   }
 };
+async function fetchAll() {
+  if (fetchButton.disabled) return;
+  fetchButton.disabled = true;
+  fetchButton.setAttribute('aria-busy', 'true');
+  const runId = ++latestRun;
+  const command = initialCommand('fetch', '');
+  try {
+    const targets = await invoke('reposList', undefined);
+    if (!targets.length) return;
+    result(command, command);
+    const responses = await Promise.all(targets.map(async repo => {
+      if (busy.has(repo.path)) return { output: `${repo.path}\n项目正在执行命令，请稍后刷新`, failed: true };
+      busy.add(repo.path);
+      render();
+      try {
+        const response = await invoke('reposRun', { path: repo.path, action: 'fetch' });
+        return { output: `${repo.path}\n${response.output}`, failed: response.failed };
+      } catch (error) {
+        return { output: `${repo.path}\n${String(error)}`, failed: true };
+      } finally {
+        busy.delete(repo.path);
+        render();
+      }
+    }));
+    if (runId == latestRun) result(command, responses.map(response => response.output).join('\n\n'), responses.some(response => response.failed));
+  } catch (error) {
+    if (runId == latestRun) result(command, String(error), true);
+  } finally {
+    fetchButton.disabled = false;
+    fetchButton.removeAttribute('aria-busy');
+    await refresh();
+  }
+}
+
+fetchButton.onclick = () => void fetchAll();
 window.addEventListener('focus', () => void refresh());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState == 'visible') void refresh();
 });
-void refresh();
+void refresh().then(fetchAll);
 const refreshTimer = setInterval(() => {
   if (document.visibilityState == 'visible') void refresh();
 }, 5000);

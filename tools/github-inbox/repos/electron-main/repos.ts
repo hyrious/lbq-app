@@ -193,6 +193,9 @@ export class Repos {
         if (repo.changed > 0) throw new Error('有未提交文件，请先提交或暂存到 stash');
       }
       switch (action) {
+        case 'fetch':
+          await step('git', 'fetch', '--all', '--prune', '--jobs=8');
+          break;
         case 'open':
           await step('smerge', path);
           break;
