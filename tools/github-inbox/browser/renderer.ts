@@ -192,7 +192,11 @@ class GitHubClient {
     await request;
   }
 
-  async getStatus(item: NotificationItem): Promise<SubjectStatus> {
+  async getStatus(item: NotificationItem, force = false): Promise<SubjectStatus> {
+    if (force) {
+      this.detailCache.delete(this.notificationKey(item));
+      return await this.fetchStatus(item);
+    }
     const detail = this.detailCache.get(this.notificationKey(item));
     if (detail) return subjectStatus(detail.kind, detail);
     return await this.fetchStatus(item);
@@ -456,6 +460,8 @@ const selectionLabel = getElement<HTMLSpanElement>('selection-label');
 const markDoneButton = getElement<HTMLButtonElement>('mark-done');
 const markReadButton = getElement<HTMLButtonElement>('mark-read');
 const inboxStatus = getElement<HTMLDivElement>('inbox-status');
+const refreshButton = getElement<HTMLButtonElement>('inbox-refresh');
+let forceRefresh = false;
 const notifications = getElement<HTMLDivElement>('notifications');
 const detailScrim = getElement<HTMLDivElement>('detail-scrim');
 const detailPanel = getElement<HTMLElement>('detail');
@@ -495,6 +501,10 @@ selectAllInput.onchange = () => {
 };
 markDoneButton.onclick = () => void markSelectedDone();
 markReadButton.onclick = () => void markSelectedRead();
+refreshButton.onclick = () => {
+  forceRefresh = true;
+  refreshQueue.enqueue();
+};
 detailScrim.onclick = event => {
   event.preventDefault();
   event.stopPropagation();
@@ -519,6 +529,10 @@ async function initialize() {
 }
 
 async function refresh() {
+  const force = forceRefresh;
+  forceRefresh = false;
+  refreshButton.disabled = true;
+  refreshButton.setAttribute('aria-busy', 'true');
   try {
     const client = await clientPromise;
     const inbox = new Map(items.map(item => [item.id, item]));
@@ -532,16 +546,21 @@ async function refresh() {
     const itemIds = new Set(items.map(item => item.id));
     for (const id of checkedIds) if (!itemIds.has(id)) checkedIds.delete(id);
     renderInbox();
-    await Promise.allSettled(items.map(async item => {
-      if (item.status || (item.kind != 'Issue' && item.kind != 'PullRequest')) return;
-      item.status = await client.getStatus(item);
+    const results = await Promise.allSettled(items.map(async item => {
+      if ((!force && item.status) || (item.kind != 'Issue' && item.kind != 'PullRequest')) return;
+      item.status = await client.getStatus(item, force);
     }));
     renderInbox();
     await client.saveInbox(items);
+    const failed = results.find(result => result.status == 'rejected');
+    if (force && failed?.status == 'rejected') throw failed.reason;
   } catch (error) {
     inboxStatus.textContent = errorMessage(error);
     inboxStatus.classList.add('error');
     inboxStatus.classList.remove('hidden');
+  } finally {
+    refreshButton.disabled = false;
+    refreshButton.removeAttribute('aria-busy');
   }
 }
 

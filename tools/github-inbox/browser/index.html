@@ -15,15 +15,20 @@
   </header>
   <main>
     <section id="inbox" class="inbox">
-      <div id="selection-bar" class="selection-bar hidden">
-        <label class="select-all"><input id="select-all" type="checkbox"><span id="selection-label">全选</span></label>
-        <button id="mark-done" class="selection-action hidden" type="button" title="标记为已完成">
-          <iconify-icon icon="carbon:checkmark" width="13" height="13" aria-hidden="true"></iconify-icon>
-          标记为已完成
-        </button>
-        <button id="mark-read" class="selection-action hidden" type="button" title="标记为已读">
-          <iconify-icon icon="carbon:email" width="13" height="13" aria-hidden="true"></iconify-icon>
-          标记为已读
+      <div class="inbox-toolbar">
+        <div id="selection-bar" class="selection-bar hidden">
+          <label class="select-all"><input id="select-all" type="checkbox"><span id="selection-label">全选</span></label>
+          <button id="mark-done" class="selection-action hidden" type="button" title="标记为已完成">
+            <iconify-icon icon="carbon:checkmark" width="13" height="13" aria-hidden="true"></iconify-icon>
+            标记为已完成
+          </button>
+          <button id="mark-read" class="selection-action hidden" type="button" title="标记为已读">
+            <iconify-icon icon="carbon:email" width="13" height="13" aria-hidden="true"></iconify-icon>
+            标记为已读
+          </button>
+        </div>
+        <button id="inbox-refresh" type="button" aria-label="刷新通知和状态" title="刷新通知和状态">
+          <iconify-icon icon="carbon:renew" aria-hidden="true"></iconify-icon>
         </button>
       </div>
       <div id="inbox-status" class="status">正在加载…</div>
