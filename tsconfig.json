@@ -2,15 +2,14 @@
   "compilerOptions": {
     "strict": true,
     "module": "nodenext",
+    "lib": ["ES2025", "ES2025.Iterator", "DOM", "DOM.Iterable"],
+    "types": ["node"],
     "noEmit": true,
     "skipLibCheck": true,
     "erasableSyntaxOnly": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "useUnknownInCatchVariables": false,
-    "moduleDetection": "force",
-    "paths": {
-      "app-file://shared/*": ["./tools/shared/*"]
-    }
+    "moduleDetection": "force"
   }
 }

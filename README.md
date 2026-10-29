@@ -1,31 +1,31 @@
 # LBQ App
 
-Simple local electron app for personal use. Register tools in `tools/*/plugin.ts`.
+Simple local electron app for personal use.
 
 Command line version: [@hyrious/lbq](https://github.com/hyrious/lbq).
 
 ## Prerequisite
 
-- Windows: `winget install rcedit`
+- Node.js 26+: `npm install -g typescript` (for typechecking)
+- Windows: `winget install rcedit` and python (for .ico generation)
 - macOS: `xcode-select --install` (installs `codesign`)
-
-## Usage
-
-```sh
-node --run install
-node --run app
-```
-
-It will write an `~/Applications/LBQ.app` on macOS.
 
 ## Development
 
 ```sh
-node --run typecheck
+node --run install
 node --run dev
+node --run lint
 ```
 
-See [docs/DESIGN.md](docs/DESIGN.md) for the runtime contracts and lifecycle.
+## Build
+
+```sh
+node --run app # macOS: ~/Applications/LBQ.app
+node --run exe # Windows: %LOCALAPPDATA%/Programs/LBQ/LBQ.exe
+```
+
+macOS builds are ad-hoc signed.
 
 ## License
 

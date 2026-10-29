@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Local Linter Configuration",
+  "type": "object",
+  "required": ["layers", "files"],
+  "properties": {
+    "$schema": {
+      "description": "The URI of the JSON Schema used to validate this configuration.",
+      "type": "string",
+      "minLength": 1
+    },
+    "layers": {
+      "description": "Map each layer to the other layers it may import directly. Imports within the same layer are always allowed. Dependencies are not transitive.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/layerName" },
+        "uniqueItems": true
+      }
+    },
+    "files": {
+      "description": "Assign files to layers using glob patterns relative to this configuration file, with / as the path separator. The first matching entry wins. Unmatched files are not checked.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/assignment" }
+    },
+    "modules": {
+      "description": "Assign import specifiers to layers using glob patterns, such as node:** or electron. The first matching entry wins. Unmatched modules are not checked.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/assignment" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "layerName": {
+      "description": "The name of a layer declared in layers.",
+      "type": "string",
+      "minLength": 1
+    },
+    "assignment": {
+      "type": "object",
+      "required": ["include", "layer"],
+      "properties": {
+        "include": {
+          "description": "Match any of these glob patterns.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "layer": { "$ref": "#/$defs/layerName" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

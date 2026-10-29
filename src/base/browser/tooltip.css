@@ -1,0 +1,20 @@
+@import './popover.css';
+
+.tooltip {
+  position: fixed;
+  position-area: top;
+  position-try-fallbacks: flip-block, flip-inline;
+  inset: auto;
+  margin: 6px;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 24px));
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 9px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 0 0 1px light-dark(rgb(0 0 0 / 12%), rgb(255 255 255 / 16%));
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: none;
+}

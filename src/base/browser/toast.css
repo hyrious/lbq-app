@@ -1,0 +1,29 @@
+@import './button.css';
+@import './popover.css';
+
+.toast {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 6px 6px 6px 14px;
+  color: CanvasText;
+  overflow-wrap: anywhere;
+}
+
+.toast.island { background: Canvas; }
+.toast:popover-open { display: flex; }
+
+.toast.error { color: light-dark(#a12622, #ffaaa5); }
+.toast > span { min-width: 0; }
+.toast .icon-button { color: CanvasText; opacity: 0.6; }
+.toast .icon-button:is(:hover, :focus-visible) { opacity: 1; }
+

@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "type": "extensionHost",
+      "name": "Local Linter",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/.vscode/extensions/local-linter"]
+    },
+    {
+      "type": "node",
+      "name": "Electron Main",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/.electron/v44.4.5/electron",
+      "osx": {
+        "runtimeExecutable": "${workspaceFolder}/.electron/v44.4.5/Electron.app/Contents/MacOS/Electron"
+      },
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}\\.electron\\v44.4.5\\electron.exe"
+      },
+      "args": ["."],
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**",
+        "!**/.electron/**" // Remove warning of default_app.asar/main.js
+      ]
+    }
+  ]
+}

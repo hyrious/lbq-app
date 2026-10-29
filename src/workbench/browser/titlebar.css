@@ -1,0 +1,17 @@
+.monaco-workbench.mac { --window-titlebar-height: 38px; }
+
+.window-titlebar {
+  flex: none;
+  height: var(--window-titlebar-height);
+  box-sizing: border-box;
+  line-height: var(--window-titlebar-height);
+  text-align: center;
+  padding: 0 78px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  -webkit-app-region: drag;
+}

@@ -1,0 +1,86 @@
+@import '../../base/browser/island.css';
+@import './titlebar.css';
+
+.workbench-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.activity-bar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 48px;
+  overflow-y: auto;
+}
+
+.activity-bar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 48px;
+  width: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.activity-bar .activity-bar-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.activity-bar .tooltip {
+  position-area: right center;
+  position-try-fallbacks: none;
+  margin-left: -5px;
+  border: 1px solid light-dark(#dedede, #383838);
+  box-shadow: none;
+  overflow: visible;
+}
+
+.activity-bar .tooltip::before {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  left: -4px;
+  top: calc(50% - 3px);
+  background: inherit;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+  border-color: inherit;
+  transform: rotate(135deg);
+}
+
+.activity-bar-button:hover .activity-bar-icon,
+.activity-bar-button[aria-pressed="true"] .activity-bar-icon {
+  opacity: 1;
+}
+
+.activity-bar-button:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -3px;
+}
+
+.app-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.app-container {
+  position: absolute;
+  inset: 0 6px 6px 0;
+  overflow: auto;
+}
+
+.workbench-content { anchor-name: --workbench-content; }
+
+.toast { top: calc(anchor(--workbench-content top, 0px) + 12px); }

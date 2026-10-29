@@ -1,0 +1,30 @@
+{
+  "$schema": ".vscode/extensions/local-linter/schema.json",
+  "layers": {
+    "common": [],
+    "node": ["common"],
+    "browser": ["common"],
+    "electron-main": ["common", "node"],
+    "electron-browser": ["common", "browser"],
+    "preload": []
+  },
+  "files": [
+    { "include": ["**/*.test.ts"], "layer": "node" },
+    { "include": ["src/main.ts", "src/main.impl.ts"], "layer": "electron-main" },
+    { "include": ["src/product.ts"], "layer": "common" },
+    { "include": ["src/preload.ts"], "layer": "preload" },
+
+    { "include": ["src/**/common/**"], "layer": "common" },
+    { "include": ["src/**/node/**"], "layer": "node" },
+    { "include": ["src/**/browser/**"], "layer": "browser" },
+    { "include": ["src/**/electron-main/**"], "layer": "electron-main" },
+    { "include": ["src/**/electron-browser/**"], "layer": "electron-browser" },
+
+    { "include": ["src/**"], "layer": "common" },
+    { "include": ["**"], "layer": "node" }
+  ],
+  "modules": [
+    { "include": ["node:**"], "layer": "node" },
+    { "include": ["electron"], "layer": "electron-main" }
+  ]
+}

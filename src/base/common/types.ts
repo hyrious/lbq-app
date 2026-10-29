@@ -1,36 +1,23 @@
-export interface PlainObject {
-  [key: PropertyKey]: unknown;
-}
+export function noop() { }
 
-export function isObject(value: unknown): value is object {
-  return value != null && typeof value == 'object';
+export interface PlainObject {
+	[key: PropertyKey]: unknown;
 }
 
 export function toPlainObject(value: unknown): PlainObject | undefined {
-  return isObject(value) && !Array.isArray(value) ? value as PlainObject : undefined;
+	if (value != null && typeof value == 'object' && !Array.isArray(value)) return value as PlainObject;
 }
 
 export function isFunction(value: unknown): value is Function {
-  return typeof value == 'function';
+	return typeof value == 'function';
 }
 
 export function isClass(value: Function): boolean {
-  return /^class(?:\s|\{)/.test(Function.prototype.toString.call(value));
+	return /^class(?:\s|\{)/.test(Function.prototype.toString.call(value));
 }
 
 export function toNumber(value: unknown): number | undefined {
-  return typeof value == 'number' && Number.isFinite(value) ? value : undefined;
+	return typeof value == 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-export function toBoolean(value: unknown): boolean | undefined {
-  return typeof value == 'boolean' ? value : undefined;
-}
-
-export function toString(value: unknown): string | undefined {
-  return typeof value == 'string' ? value : undefined;
-}
-
-export function toNonEmptyString(value: unknown): string | undefined {
-  const string = toString(value);
-  return string ? string : undefined;
-}
+export interface Thenable<T> extends PromiseLike<T> { }

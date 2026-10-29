@@ -1,0 +1,48 @@
+@import './popover.css';
+
+.window-overlay {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: calc(var(--window-titlebar-height, 0px) + 24px) 24px 24px;
+  background: transparent;
+  color: white;
+  color-scheme: dark;
+  outline: none;
+  -webkit-app-region: no-drag;
+  flex-direction: column;
+}
+
+.window-overlay:popover-open { display: flex; }
+
+/* The host supplies the custom title bar height; native title bars need no region. */
+.window-overlay-drag-region {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--window-titlebar-height, 0px);
+  -webkit-app-region: drag;
+}
+
+.window-overlay::backdrop {
+  background: rgb(0 0 0 / 78%);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease, display 160ms allow-discrete, overlay 160ms allow-discrete;
+}
+
+.window-overlay:popover-open::backdrop { opacity: 1; }
+
+@starting-style {
+  .window-overlay:popover-open::backdrop { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window-overlay::backdrop { transition: none; }
+}

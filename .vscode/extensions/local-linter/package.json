@@ -1,0 +1,19 @@
+{
+  "name": "local-linter",
+  "displayName": "(Local) Linter",
+  "description": "Check layers.",
+  "icon": "../../../icon.png",
+  "version": "0.1.0",
+  "publisher": "hyrious",
+  "activationEvents": [
+    "onLanguage:typescript"
+  ],
+  "type": "module",
+  "main": "extension.ts",
+  "engines": {
+    "vscode": "^1.144.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.144.0"
+  }
+}

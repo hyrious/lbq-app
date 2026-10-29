@@ -1,0 +1,47 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  flex: none;
+  min-height: 30px;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+  background: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
+}
+
+.button:active:not(:disabled) {
+  background: light-dark(rgb(0 0 0 / 12%), rgb(255 255 255 / 16%));
+}
+
+.button:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.button:disabled { opacity: 0.45; cursor: default; }
+
+.button.icon-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.icon-button > .carbon-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}
