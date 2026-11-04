@@ -32,7 +32,12 @@ function main(): void {
 	}
 
 	app.on('window-all-closed', noop);
-	app.whenReady().then(() => import('./main.impl.ts')).catch(error => {
+	app.whenReady().then(async () => {
+		const { Application } = await import('./app/electron-main/application.ts');
+		const application = await Application.instantiate();
+		app.on('before-quit', () => application.dispose());
+		await application.open();
+	}).catch(error => {
 		console.error(error);
 		dialog.showErrorBox(`${productName} failed to start`, getErrorMessage(error));
 		app.quit();

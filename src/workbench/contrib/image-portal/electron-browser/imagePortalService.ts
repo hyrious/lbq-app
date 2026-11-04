@@ -1,8 +1,6 @@
 import { IClipboardService } from '../../../../platform/common/clipboard.ts';
 import { IImageService, type ProcessedImage } from '../common/imagePortal.ts';
-import { IImagePortalService } from '../browser/imagePortal.ts';
-import { registerService } from '../../../../platform/common/extensions.ts';
-import { registerRemoteService } from '../../../../platform/electron-browser/ipc.ts';
+import { IImagePortalService } from '../browser/imagePortalService.ts';
 
 export class ImagePortalService implements IImagePortalService {
 	private readonly images: IImageService;
@@ -24,9 +22,3 @@ export class ImagePortalService implements IImagePortalService {
 		return result;
 	}
 }
-
-registerRemoteService(IImageService);
-registerService(IImagePortalService, accessor => new ImagePortalService(
-	accessor.get(IImageService),
-	accessor.get(IClipboardService)
-), true);

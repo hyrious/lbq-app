@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { posix } from 'node:path';
 import { Config } from './config.ts';
 import { checkLayers } from './layers.shared.ts';
 
@@ -14,7 +13,7 @@ export function lintLayers(context: vscode.ExtensionContext) {
 		const config = folder && configs.get(folder.uri.toString());
 		const results: vscode.Diagnostic[] = [];
 		if (folder && config) {
-			const file = posix.relative(folder.uri.path, doc.uri.path);
+			const file = vscode.workspace.asRelativePath(doc.uri, false).replace(/\\/g, '/');
 			for (const error of checkLayers(config, file, doc.getText())) {
 				const line = doc.positionAt(error.offset).line;
 				const range = doc.lineAt(line).range;

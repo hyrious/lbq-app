@@ -2,8 +2,8 @@ import { nativeImage, type NativeImage } from 'electron';
 import { join } from 'node:path';
 import { withTemporaryDirectory } from '../../../../base/node/fs.ts';
 import { execFileAsync } from '../../../../base/node/process.ts';
-import { registerMainService } from '../../../../platform/electron-main/ipc.ts';
 import { IImageService, type ImageRequest, type ProcessedImage } from '../common/imagePortal.ts';
+import { registerMainService } from '../../../../platform/electron-main/ipc.ts';
 
 async function readImage(source: string | Uint8Array): Promise<NativeImage> {
 	if (source instanceof Uint8Array) {
