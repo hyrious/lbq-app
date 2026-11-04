@@ -20,7 +20,6 @@
 .monaco-workbench.windows { --monaco-monospace-font: "Cascadia Code", Consolas, "Courier New", monospace; }
 .monaco-workbench.linux { --monaco-monospace-font: "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace; }
 
-
 :where(html) {
   height: 100%;
 }
@@ -72,9 +71,4 @@
 
 .pointer {
   cursor: pointer;
-}
-
-.monaco-workbench {
-  display: flex;
-  flex-direction: column;
 }

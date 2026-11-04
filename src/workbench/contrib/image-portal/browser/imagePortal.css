@@ -87,12 +87,11 @@
   background: light-dark(rgb(0 0 0 / 5%), rgb(255 255 255 / 8%));
 }
 
-.image-portal .image-portal-choose:has(+button) {
+.image-portal .image-portal-choose:has(+button:not([hidden])) {
   margin-right: 6px;
 }
 
 .image-portal input[type=text] { width: 112px; }
 .image-portal input:disabled { opacity: 0.45; cursor: default; }
-.image-portal input:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
+.image-portal input:focus-visible { outline: 1px solid currentColor; outline-offset: -1px; }
 .image-portal [hidden] { display: none; }
-

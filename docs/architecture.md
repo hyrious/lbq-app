@@ -18,8 +18,8 @@ Full layers configuration see [`lint.config.json`](../lint.config.json).
 
 ```mermaid
 flowchart TD
-	Main["src/main.ts<br/>Main thread entry"] -->|App ready| MainImpl["main.impl.ts<br/>Open main window src/index.html"]
-	MainImpl -->|Preload: IPC and CSS modules| Workbench["workbench.ts<br/>First renderer script"]
+	Main["src/main.ts<br/>Main thread entry"] -->|App ready| Application["application.ts<br/>Open main window src/index.html"]
+	Application -->|Preload: IPC and CSS modules| Workbench["workbench.ts<br/>First renderer script"]
 	Workbench --> WorkbenchMain["workbench.main.ts<br/>Workbench implementation"]
 ```
 

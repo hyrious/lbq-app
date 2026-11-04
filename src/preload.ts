@@ -29,6 +29,9 @@ function applyPlatform() {
 	const mac = process.platform === 'darwin';
 	const windows = process.platform === 'win32';
 	document.body.classList.add('monaco-workbench', mac ? 'mac' : windows ? 'windows' : 'linux');
+	if (windows && Number(process.getSystemVersion().split('.')[2]) < 22000) {
+		document.body.classList.add('windows-10');
+	}
 	if (mac && Number.parseInt(process.getSystemVersion(), 10) >= 26) {
 		document.body.classList.add('macos-tahoe');
 	}

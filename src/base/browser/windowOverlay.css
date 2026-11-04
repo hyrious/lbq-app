@@ -21,6 +21,9 @@
 
 .window-overlay:popover-open { display: flex; }
 
+.mac .window-overlay { border-radius: 10px; }
+.mac.macos-tahoe .window-overlay { border-radius: 16px; }
+
 /* The host supplies the custom title bar height; native title bars need no region. */
 .window-overlay-drag-region {
   position: absolute;

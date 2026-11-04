@@ -8,13 +8,21 @@
   margin: 6px;
   width: max-content;
   max-width: min(280px, calc(100vw - 24px));
-  border: 0;
-  border-radius: 4px;
-  padding: 6px 9px;
-  background: Canvas;
-  color: CanvasText;
-  box-shadow: 0 0 0 1px light-dark(rgb(0 0 0 / 12%), rgb(255 255 255 / 16%));
+  border: 1px solid light-dark(#c8c8c8, #454545);
+  border-radius: 3px;
+  padding: 4px 8px;
+  background: light-dark(#f8f8f8, #202020);
+  color: light-dark(#616161, #cccccc);
+  box-shadow: 0 2px 8px light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 36%));
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
   pointer-events: none;
+  transition: opacity 100ms ease-in-out,
+    display 100ms allow-discrete, overlay 100ms allow-discrete;
+}
+
+.tooltip:popover-open { opacity: 1; }
+
+@starting-style {
+  .tooltip:popover-open { opacity: 0; }
 }

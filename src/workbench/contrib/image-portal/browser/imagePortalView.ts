@@ -19,7 +19,6 @@ export class ImagePortalView extends AppView {
 	private readonly picker = $('input', { type: 'file', accept: 'image/*,.heic,.heif', hidden: '' });
 	private readonly choose = $('button.button.image-portal-choose', { type: 'button' }, '选择图片');
 	private readonly reopen = $('button.button', { type: 'button', hidden: '' }, '查看图片');
-	private readonly hint = $('p', undefined, '自动转换为 PNG 并复制到剪贴板');
 	private readonly preview = $('img', { alt: '图片预览', draggable: 'false' });
 	private readonly size = $('input', { type: 'text', inputmode: 'decimal', placeholder: '倍数 / 宽度', 'aria-label': '缩放倍数或目标宽度' });
 	private readonly copy = $('button.button', { type: 'submit' }, '缩放并复制');
@@ -40,7 +39,7 @@ export class ImagePortalView extends AppView {
 		this.service = accessor.get(IImagePortalService);
 		container.classList.add('image-portal');
 		container.tabIndex = -1;
-		this.surface.append($('.image-portal-empty', undefined, i('image'), $('p', undefined, '拖入或粘贴图片'), this.hint, this.choose, this.reopen));
+		this.surface.append($('.image-portal-empty', undefined, i('image'), $('p', undefined, '拖入或粘贴图片'), this.choose, this.reopen));
 		const form = $('form.image-portal-toolbar.island', undefined, this.dimensions, this.size, this.copy, this.close);
 		this.overlay.classList.add('image-portal-preview');
 		this.overlay.append($('.image-portal-image', undefined, this.preview), form);
@@ -110,8 +109,6 @@ export class ImagePortalView extends AppView {
 		this.busy = busy;
 		this.picker.disabled = this.choose.disabled = this.size.disabled = this.copy.disabled = busy;
 		this.container.setAttribute('aria-busy', String(busy));
-		this.hint.textContent = busy ? '正在处理图片…' : '自动转换为 PNG 并复制到剪贴板';
-		this.copy.textContent = busy ? '正在处理…' : '缩放并复制';
 	}
 
 	private updatePreview(result: ProcessedImage): void {

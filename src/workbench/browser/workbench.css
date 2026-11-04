@@ -1,6 +1,11 @@
 @import '../../base/browser/island.css';
 @import './titlebar.css';
 
+.monaco-workbench {
+  display: flex;
+  flex-direction: column;
+}
+
 .workbench-content {
   display: flex;
   flex: 1;
@@ -38,8 +43,6 @@
   position-area: right center;
   position-try-fallbacks: none;
   margin-left: -5px;
-  border: 1px solid light-dark(#dedede, #383838);
-  box-shadow: none;
   overflow: visible;
 }
 
@@ -80,6 +83,8 @@
   inset: 0 6px 6px 0;
   overflow: auto;
 }
+
+.windows-10 .app-container { inset: 0; }
 
 .workbench-content { anchor-name: --workbench-content; }
 
