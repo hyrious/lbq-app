@@ -27,9 +27,22 @@ export function $<T extends string>(selector: T, attributes?: Record<string, str
 	return element as TagToElement<T>;
 }
 
-export function listen<K extends keyof HTMLElementEventMap>(node: HTMLElement, type: K, handler: (event: HTMLElementEventMap[K]) => void): IDisposable {
+export function listen<K extends keyof HTMLElementEventMap>(node: HTMLElement, type: K, handler: (event: HTMLElementEventMap[K]) => void): IDisposable;
+export function listen<K extends keyof DocumentEventMap>(node: Document, type: K, handler: (event: DocumentEventMap[K]) => void): IDisposable;
+export function listen<K extends keyof WindowEventMap>(node: Window, type: K, handler: (event: WindowEventMap[K]) => void): IDisposable;
+export function listen(node: EventTarget, type: string, handler: EventListener): IDisposable {
 	node.addEventListener(type, handler);
 	return toDisposable(() => node.removeEventListener(type, handler));
+}
+
+export function isActiveElement(element: Element): boolean {
+	return element.ownerDocument.activeElement == element;
+}
+
+/** Whether focus belongs to an element rather than the document itself. */
+export function hasFocusedElement(): boolean {
+	const { activeElement, body, documentElement } = mainWindow.document;
+	return activeElement != null && activeElement != body && activeElement != documentElement;
 }
 
 export function domContentLoaded(window: Window): Promise<void> {

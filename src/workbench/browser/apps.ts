@@ -19,6 +19,8 @@ export interface IAppDescriptor {
 	readonly title: string;
 	/** Carbon icon name, e.g. 'document'. */
 	readonly icon: string;
+	/** Display order, ascending. Defaults to 0. */
+	readonly order?: number;
 	readonly factory: (accessor: ServicesAccessor, container: HTMLElement) => AppView;
 }
 
@@ -38,7 +40,7 @@ class AppRegistry implements IAppRegistry {
 	}
 
 	getApps(): readonly IAppDescriptor[] {
-		return Array.from(this.apps.values());
+		return Array.from(this.apps.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
 	}
 }
 
@@ -50,10 +52,7 @@ Registry.add(Extensions.apps, new AppRegistry());
 
 export const appRegistry: IAppRegistry = Registry.as<IAppRegistry>(Extensions.apps);
 
-export interface IAppConstructor {
-	readonly id: string;
-	readonly title: string;
-	readonly icon: string;
+export interface IAppConstructor extends Omit<IAppDescriptor, 'factory'> {
 	new(accessor: ServicesAccessor, container: HTMLElement): AppView;
 }
 
@@ -75,6 +74,7 @@ export function registerApp(app: IAppDescriptor | IAppConstructor): void {
 			id: app.id,
 			title: app.title,
 			icon: app.icon,
+			order: app.order,
 			factory: (accessor, container) => new app(accessor, container)
 		};
 	} else {

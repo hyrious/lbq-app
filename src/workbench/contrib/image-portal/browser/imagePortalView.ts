@@ -14,6 +14,7 @@ export class ImagePortalView extends AppView {
 	static readonly id = 'image-portal';
 	static readonly title = 'Image Portal';
 	static readonly icon = 'image';
+	static readonly order = 1;
 
 	private readonly service: IImagePortalService;
 	private readonly picker = $('input', { type: 'file', accept: 'image/*,.heic,.heif', hidden: '' });

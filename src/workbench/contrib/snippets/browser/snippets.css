@@ -1,0 +1,35 @@
+.snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.snippet {
+  position: relative;
+  flex: none;
+  min-height: 1.4em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.snippet:focus {
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
+}
+
+.snippet textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(1.4em + 20px);
+  field-sizing: content;
+  resize: none;
+  border: 0;
+  padding: 10px 12px;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}

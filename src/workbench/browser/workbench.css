@@ -61,6 +61,22 @@
   transform: rotate(135deg);
 }
 
+.activity-bar .tooltip kbd {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 5px);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  height: calc(100% + 2px);
+  aspect-ratio: 1;
+  border: 1px solid light-dark(#c8c8c8, #454545);
+  border-radius: 3px;
+  background: light-dark(#f8f8f8, #202020);
+  box-shadow: 0 2px 8px light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 36%));
+  font: inherit;
+}
+
 .activity-bar-button:hover .activity-bar-icon,
 .activity-bar-button[aria-pressed="true"] .activity-bar-icon {
   opacity: 1;
