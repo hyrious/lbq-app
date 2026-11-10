@@ -21,6 +21,10 @@ export interface IAppDescriptor {
 	readonly icon: string;
 	/** Display order, ascending. Defaults to 0. */
 	readonly order?: number;
+	/** Global entries appear below the app list and do not receive numbered shortcuts. */
+	readonly group?: 'apps' | 'global';
+	/** Key combined with the platform primary modifier. */
+	readonly primaryKey?: string;
 	readonly factory: (accessor: ServicesAccessor, container: HTMLElement) => AppView;
 }
 
@@ -40,7 +44,8 @@ class AppRegistry implements IAppRegistry {
 	}
 
 	getApps(): readonly IAppDescriptor[] {
-		return Array.from(this.apps.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+		return Array.from(this.apps.values()).sort((a, b) => Number(a.group == 'global') - Number(b.group == 'global')
+			|| (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
 	}
 }
 
@@ -75,6 +80,8 @@ export function registerApp(app: IAppDescriptor | IAppConstructor): void {
 			title: app.title,
 			icon: app.icon,
 			order: app.order,
+			group: app.group,
+			primaryKey: app.primaryKey,
 			factory: (accessor, container) => new app(accessor, container)
 		};
 	} else {

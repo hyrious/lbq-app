@@ -1,0 +1,26 @@
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 12px;
+}
+
+.settings-row:has(input:disabled) {
+  cursor: default;
+}
+
+.settings-message {
+  font-size: 12px;
+  line-height: 1.5;
+  color: light-dark(#616161, #aaa);
+}
+
+.settings-message {
+  margin: 0;
+  padding: 0 12px 10px;
+}
+
+.settings-message:empty {
+  display: none;
+}

@@ -1,0 +1,67 @@
+input.switch {
+  appearance: none;
+  position: relative;
+  box-sizing: border-box;
+  flex: none;
+  width: 32px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid light-dark(rgb(0 0 0 / 24%), rgb(255 255 255 / 28%));
+  border-radius: 10px;
+  background: light-dark(rgb(0 0 0 / 10%), rgb(255 255 255 / 12%));
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+input.switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: light-dark(#fff, #ddd);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  transition: transform 120ms ease;
+}
+
+input.switch:checked {
+  border-color: transparent;
+  background: light-dark(#0969da, #4798f5);
+}
+
+input.switch:checked::before {
+  transform: translateX(12px);
+  background: #fff;
+}
+
+input.switch:hover:not(:disabled) {
+  border-color: light-dark(rgb(0 0 0 / 45%), rgb(255 255 255 / 55%));
+}
+
+input.switch:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 3px;
+}
+
+input.switch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input.switch,
+  input.switch::before { transition: none; }
+}
+
+@media (forced-colors: active) {
+  input.switch { background: Canvas; border-color: ButtonText; }
+  input.switch::before { background: ButtonText; box-shadow: none; }
+  input.switch:checked { background: Highlight; border-color: Highlight; }
+  input.switch:checked::before { background: HighlightText; }
+  input.switch:disabled { opacity: 1; border-color: GrayText; }
+  input.switch:disabled::before { background: GrayText; }
+  input.switch,
+  input.switch::before { forced-color-adjust: none; }
+}

@@ -27,7 +27,9 @@ export class Workbench extends Disposable {
 			this.register(toDisposable(() => titlebar.remove()));
 		}
 
-		const activityBar = $('nav.activity-bar', { 'aria-label': 'Apps' });
+		const appBar = $('.activity-bar-apps');
+		const globalBar = $('.activity-bar-global');
+		const activityBar = $('nav.activity-bar', { 'aria-label': 'Apps' }, appBar, globalBar);
 		const appArea = $('main.app-area');
 		const content = $('.workbench-content', undefined, activityBar, appArea);
 		this.mainContainer.append(content);
@@ -38,10 +40,11 @@ export class Workbench extends Disposable {
 		const lastAppId = storage.get('workbench.activeApp');
 		let initialButton: HTMLButtonElement | undefined;
 		const shortcuts: AppShortcut[] = [];
-		for (const app of appRegistry.getApps()) {
+		for (const [index, app] of appRegistry.getApps().entries()) {
 			const button = this.createAppButton(app);
 			if (!initialButton || app.id == lastAppId) initialButton = button;
-			activityBar.append(button);
+			const bar = app.group == 'global' ? globalBar : appBar;
+			bar.append(button);
 			const tooltip = this.register(new Tooltip(button, app.title));
 
 			let container: HTMLDivElement | undefined;
@@ -64,6 +67,7 @@ export class Workbench extends Disposable {
 			};
 			this.register(listen(button, 'click', activate));
 			shortcuts.push({
+				key: app.primaryKey ?? (app.group != 'global' && index < 9 ? String(index + 1) : undefined),
 				button,
 				title: app.title,
 				tooltip,

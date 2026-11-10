@@ -7,6 +7,7 @@ import { mainWindow } from '../../base/browser/window.ts';
 import { Disposable } from '../../base/common/lifecycle.ts';
 
 export interface AppShortcut {
+	readonly key: string | undefined;
 	readonly button: HTMLButtonElement;
 	readonly title: string;
 	readonly tooltip: Tooltip;
@@ -14,18 +15,18 @@ export interface AppShortcut {
 }
 
 export class AppShortcuts extends Disposable {
-	private readonly apps: readonly AppShortcut[];
+	private readonly apps: readonly (AppShortcut & { readonly key: string })[];
 	private readonly primaryKey = getPrimaryKey();
 	private timer: ReturnType<typeof setTimeout> | undefined;
 	private held = false;
 
 	constructor(service: IKeybindingService, activityBar: HTMLElement, apps: readonly AppShortcut[]) {
 		super();
-		this.apps = apps.slice(0, 9);
+		this.apps = apps.filter((app): app is AppShortcut & { readonly key: string } => app.key != null);
 		this.registerNavigation(service, activityBar, apps);
-		for (const [index, app] of this.apps.entries()) {
+		for (const app of this.apps) {
 			this.register(service.registerKeybinding({
-				key: String(index + 1),
+				key: app.key,
 				modifiers: Primary,
 				scope: mainWindow.document.body,
 				handler: event => {
@@ -43,8 +44,8 @@ export class AppShortcuts extends Disposable {
 			this.held = true;
 			this.timer = setTimeout(() => {
 				this.timer = undefined;
-				for (const [index, app] of this.apps.entries()) {
-					const key = $('kbd', undefined, String(index + 1));
+				for (const app of this.apps) {
+					const key = $('kbd', undefined, app.key);
 					app.tooltip.pin($('span', undefined, app.title, key));
 				}
 			}, 1000);

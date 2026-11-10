@@ -16,7 +16,22 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 48px;
+}
+
+.activity-bar-apps {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+}
+
+.activity-bar-global {
+  flex: none;
+}
+
+.activity-bar-apps,
+.activity-bar-global {
+  display: flex;
+  flex-direction: column;
 }
 
 .activity-bar-button {
