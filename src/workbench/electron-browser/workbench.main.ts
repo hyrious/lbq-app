@@ -1,5 +1,6 @@
 import '../../platform/browser/keybinding.ts';
 import '../../platform/browser/storage.ts';
+import '../../platform/electron-browser/appData.ts';
 import '../../platform/electron-browser/clipboard.ts';
 import '../../platform/electron-browser/loginItem.ts';
 

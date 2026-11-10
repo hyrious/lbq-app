@@ -6,6 +6,7 @@ import { $, listen } from '../../../../base/browser/dom.ts';
 import { mainWindow } from '../../../../base/browser/window.ts';
 import { getErrorMessage } from '../../../../base/common/errors.ts';
 import { toDisposable } from '../../../../base/common/lifecycle.ts';
+import { IAppDataService } from '../../../../platform/common/appData.ts';
 import { ILoginItemService, type ILoginItemState } from '../../../../platform/common/loginItem.ts';
 import { AppView, registerApp } from '../../../browser/apps.ts';
 
@@ -31,9 +32,28 @@ registerApp(class SettingsView extends AppView {
 		super(accessor, container);
 		this.service = accessor.get(ILoginItemService);
 		container.classList.add('settings');
-		const title = $('span', { id: 'settings-login-item-title' }, '开机启动');
-		const row = $('label.settings-row', undefined, title, this.input);
-		container.append($('.island', undefined, row, this.message));
+		const row = $('label.settings-row', undefined,
+			$('span', { id: 'settings-login-item-title' }, '开机启动'), this.input);
+		const appData = accessor.get(IAppDataService);
+		const openFolder = $('button.button.settings-open-folder', { type: 'button' }, '打开文件夹');
+		const folderMessage = $('p.settings-message', { role: 'status' });
+		container.append($('.island', undefined,
+			$('section.settings-item', { 'aria-labelledby': 'settings-login-item-title' }, row, this.message),
+			$('section.settings-item', { 'aria-labelledby': 'settings-app-data-title' },
+				$('.settings-row', undefined,
+					$('span', { id: 'settings-app-data-title' }, '应用数据'), openFolder),
+				folderMessage)));
+		this.register(listen(openFolder, 'click', async () => {
+			openFolder.disabled = true;
+			folderMessage.textContent = '';
+			try {
+				await appData.openFolder();
+			} catch (error) {
+				if (!this.disposed) folderMessage.textContent = getErrorMessage(error);
+			} finally {
+				if (!this.disposed) openFolder.disabled = false;
+			}
+		}));
 		this.input.disabled = true;
 		this.register(listen(this.input, 'click', event => {
 			if (this.busy) event.preventDefault();

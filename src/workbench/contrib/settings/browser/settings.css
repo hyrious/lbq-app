@@ -1,9 +1,17 @@
+.settings-item {
+  padding: 10px 12px;
+}
+
+.settings-item + .settings-item {
+  border-top: 1px solid light-dark(rgb(0 0 0 / 5%), rgb(255 255 255 / 7%));
+}
+
 .settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 10px 12px;
+  min-height: 30px;
 }
 
 .settings-row:has(input:disabled) {
@@ -11,16 +19,17 @@
 }
 
 .settings-message {
+  margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.5;
   color: light-dark(#616161, #aaa);
-}
-
-.settings-message {
-  margin: 0;
-  padding: 0 12px 10px;
+  overflow-wrap: anywhere;
 }
 
 .settings-message:empty {
   display: none;
+}
+
+.settings-open-folder {
+  background: light-dark(rgb(0 0 0 / 5%), rgb(255 255 255 / 8%));
 }
