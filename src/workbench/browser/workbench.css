@@ -26,6 +26,11 @@
 
 .activity-bar-global {
   flex: none;
+  padding-bottom: 6px;
+}
+
+.windows-10 .activity-bar-global {
+  padding-bottom: 0;
 }
 
 .activity-bar-apps,
@@ -46,6 +51,8 @@
   color: inherit;
   cursor: pointer;
 }
+
+.activity-bar-button[hidden] { display: none; }
 
 .activity-bar .activity-bar-icon {
   width: 24px;

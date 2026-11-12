@@ -60,13 +60,13 @@ export class AppShortcuts extends Disposable {
 	}
 
 	private registerNavigation(service: IKeybindingService, activityBar: HTMLElement, apps: readonly AppShortcut[]): void {
-		const buttons = apps.map(app => app.button);
 		for (const direction of [-1, 1]) {
 			this.register(service.registerKeybinding({
 				key: direction < 0 ? 'ArrowUp' : 'ArrowDown',
 				scope: activityBar,
-				when: event => buttons.some(button => button == event.target),
+				when: event => apps.some(app => app.button == event.target),
 				handler: event => {
+					const buttons = apps.map(app => app.button).filter(button => !button.hidden);
 					const index = buttons.findIndex(button => button == event.target);
 					const next = buttons[index + direction];
 					next?.focus();

@@ -1,5 +1,6 @@
 // This file is evaluated in a special script in the browser.
 // Do not import anything here. It can only use require(electron).
+import type { IDisposable } from './base/common/lifecycle.ts';
 import type { Bridge, IConfiguration } from './platform/common/ipc.ts';
 const { contextBridge, webUtils, ipcRenderer }: typeof import('electron') = require('electron');
 
@@ -13,6 +14,12 @@ contextBridge.exposeInMainWorld('vscode', defineBridge({
 	},
 	resolveConfiguration(): Promise<IConfiguration> {
 		return resolveConfiguration;
+	},
+	onDidActivateApp(listener: (id: string) => void): IDisposable {
+		const handler = (_event: Electron.IpcRendererEvent, id: string) => listener(id);
+		ipcRenderer.on('vscode:activate-app', handler);
+		ipcRenderer.send('vscode:workbench-ready');
+		return { dispose() { ipcRenderer.removeListener('vscode:activate-app', handler); } };
 	}
 }));
 

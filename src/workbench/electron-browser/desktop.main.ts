@@ -14,6 +14,7 @@ class DesktopMain extends Disposable {
 		const services = await this.initServices();
 		const workbench = this.register(new Workbench());
 		services.run(accessor => workbench.initialize(accessor));
+		this.register(vscode.onDidActivateApp(id => workbench.activateApp(id)));
 	}
 
 	private async initServices(): Promise<InstantiationService> {

@@ -1,4 +1,5 @@
 import type { ICarbonIcons } from '../../base/common/icon.ts';
+import type { IDisposable } from '../../base/common/lifecycle.ts';
 import type { IChannelTransport } from './channel.ts';
 
 /** Access from the electron-browser layer through `vscode`. */
@@ -8,6 +9,7 @@ export interface Bridge extends IChannelTransport {
 	getPathForFile(file: File): string;
 	/** Expose something from the main world to renderer. */
 	resolveConfiguration(): Promise<IConfiguration>;
+	onDidActivateApp(listener: (id: string) => void): IDisposable;
 }
 
 export interface IConfiguration {

@@ -13,4 +13,8 @@ import '../contrib/snippets/electron-browser/snippets.contribution.ts';
 
 import { main } from './desktop.main.ts';
 
+if (vscode.platform == 'darwin') {
+	await import('./workbench.main.mac.ts');
+}
+
 main();

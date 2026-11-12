@@ -1,0 +1,54 @@
+function run(argv) {
+	var request = JSON.parse(argv[0]);
+	var events = Application('System Events');
+	if (request.action === 'list') {
+		var windows = [];
+		var processes = events.applicationProcesses.whose({ backgroundOnly: false })();
+		for (var i = 0; i < processes.length; i++) {
+			var process = processes[i];
+			try {
+				var pid = process.unixId();
+				if (pid === request.pid || !process.visible()) continue;
+				var name = process.name();
+				var items = process.windows();
+				for (var j = 0; j < items.length; j++) {
+					try {
+						var item = items[j];
+						if (item.subrole() !== 'AXStandardWindow') continue;
+						if (attribute(item, 'AXMinimized') || attribute(item, 'AXFullScreen')) continue;
+						var position = item.position();
+						var size = item.size();
+						if (size[0] <= 0 || size[1] <= 0) continue;
+						windows.push({ pid: pid, app: name, title: item.name(), x: position[0], y: position[1], width: size[0], height: size[1] });
+					} catch (error) { }
+				}
+			} catch (error) { }
+		}
+		return JSON.stringify(windows);
+	}
+	var target = request.target;
+	var matches = events.applicationProcesses.whose({ unixId: target.pid })();
+	if (matches.length !== 1) throw new Error('应用已退出，请重新选择窗口。');
+	var process = matches[0];
+	var items = process.windows();
+	var candidates = [];
+	for (var i = 0; i < items.length; i++) {
+		var item = items[i];
+		if (item.name() !== target.title) continue;
+		var position = item.position();
+		var size = item.size();
+		if (position[0] === target.x && position[1] === target.y && size[0] === target.width && size[1] === target.height) candidates.push(item);
+	}
+	if (candidates.length !== 1) throw new Error('窗口已变化或无法区分，请重新选择窗口。');
+	var window = candidates[0];
+	if (attribute(window, 'AXMinimized') || attribute(window, 'AXFullScreen')) throw new Error('此窗口当前无法移动。');
+	if (request.action === 'move') window.position = [request.position.x, request.position.y];
+	process.frontmost = true;
+	window.actions.byName('AXRaise').perform();
+	return 'null';
+}
+
+function attribute(window, name) {
+	try { return window.attributes.byName(name).value(); }
+	catch (error) { return false; }
+}

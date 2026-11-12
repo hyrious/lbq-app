@@ -21,6 +21,10 @@ export class WindowService extends Disposable {
 	private readonly statePath = resolve(app.getPath('userData'), 'window-state.json');
 	private readonly preloadPath: string;
 
+	private workbenchReady = false;
+	private pendingApp: string | undefined;
+	private opening: Promise<BrowserWindow> | undefined;
+
 	private _mainWindow: Electron.BrowserWindow | undefined;
 	get mainWindow(): Electron.BrowserWindow | undefined { return this._mainWindow; }
 
@@ -33,6 +37,10 @@ export class WindowService extends Disposable {
 	}
 
 	private setupIPC() {
+		ipcMain.on('vscode:workbench-ready', () => {
+			this.workbenchReady = true;
+			this.sendPendingApp();
+		});
 		ipcMain.handle('vscode:config', async (): Promise<IConfiguration> => ({
 			cssModules: await this.cssModules(),
 			carbonIcons
@@ -96,6 +104,11 @@ export class WindowService extends Disposable {
 	}
 
 	async openMainWindow(): Promise<BrowserWindow> {
+		if (this._mainWindow) return this._mainWindow;
+		return this.opening ??= this.createMainWindow().finally(() => { this.opening = undefined; });
+	}
+
+	private async createMainWindow(): Promise<BrowserWindow> {
 		let state: IWindowState = { width: 32 * 17, height: 32 * 13 };
 		try {
 			const value = toPlainObject(JSON.parse(await readFile(this.statePath, 'utf8')));
@@ -128,6 +141,9 @@ export class WindowService extends Disposable {
 				}
 			}
 		});
+		this._mainWindow = window;
+		this.workbenchReady = false;
+		window.webContents.on('did-start-loading', () => { this.workbenchReady = false; });
 
 		window.webContents.on('before-input-event', (event, input) => {
 			if (input.type === 'keyDown' && input.key === 'F12') {
@@ -157,10 +173,9 @@ export class WindowService extends Disposable {
 			await window.loadURL(`app-file://src/index.html`);
 		} catch (error) {
 			window.destroy();
+			this._mainWindow = undefined;
 			throw error;
 		}
-
-		this._mainWindow = window;
 
 		window.on('unresponsive', () => {
 			clearTimeout(saving);
@@ -175,5 +190,20 @@ export class WindowService extends Disposable {
 		});
 
 		return window;
+	}
+
+	async activateApp(id: string): Promise<void> {
+		this.pendingApp = id;
+		const window = await this.openMainWindow();
+		if (window.isMinimized()) window.restore();
+		window.show();
+		window.focus();
+		this.sendPendingApp();
+	}
+
+	private sendPendingApp(): void {
+		if (!this.workbenchReady || !this.pendingApp) return;
+		this._mainWindow?.webContents.send('vscode:activate-app', this.pendingApp);
+		this.pendingApp = undefined;
 	}
 }

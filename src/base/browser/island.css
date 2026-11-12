@@ -1,17 +1,18 @@
 .island {
-  border-radius: 7px;
+  --island-radius: 7px;
+  border-radius: var(--island-radius);
   background: light-dark(rgb(0 0 0 / 4%), rgb(255 255 255 / 6%));
   box-shadow: inset 0 0 0 1px light-dark(rgb(0 0 0 / 5%), rgb(255 255 255 / 7%));
 }
 
 .mac .island {
-  border-radius: calc(10px - 6px);
+  --island-radius: calc(10px - 6px);
 }
 
 .mac.macos-tahoe .island {
-  border-radius: calc(16px - 6px);
+  --island-radius: calc(16px - 6px);
 }
 
 .windows-10 .island {
-  border-radius: 0;
+  --island-radius: 0px;
 }

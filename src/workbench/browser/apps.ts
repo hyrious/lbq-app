@@ -1,5 +1,6 @@
 import type { ServicesAccessor } from '../../platform/common/instantiation.ts';
 
+import { Emitter } from '../../base/common/event.ts';
 import { Disposable } from '../../base/common/lifecycle.ts';
 import { isFunction } from '../../base/common/types.ts';
 import { Registry } from '../../platform/common/registry.ts';
@@ -7,10 +8,20 @@ import { Registry } from '../../platform/common/registry.ts';
 export abstract class AppView extends Disposable {
 	protected readonly container: HTMLElement;
 
+	private readonly _onDidRequestClose = this.register(new Emitter<void>());
+	readonly onDidRequestClose = this._onDidRequestClose.event;
+
 	constructor(accessor: ServicesAccessor, container: HTMLElement) {
 		super();
 		this.container = container;
 		this.container.classList.add('view');
+	}
+
+	activate(): void { }
+	deactivate(): void { }
+
+	protected requestClose(): void {
+		this._onDidRequestClose.fire();
 	}
 }
 
@@ -25,6 +36,8 @@ export interface IAppDescriptor {
 	readonly group?: 'apps' | 'global';
 	/** Key combined with the platform primary modifier. */
 	readonly primaryKey?: string;
+	/** Only shown in the activity bar while active. Not restored on startup. */
+	readonly hidden?: boolean;
 	readonly factory: (accessor: ServicesAccessor, container: HTMLElement) => AppView;
 }
 
@@ -82,6 +95,7 @@ export function registerApp(app: IAppDescriptor | IAppConstructor): void {
 			order: app.order,
 			group: app.group,
 			primaryKey: app.primaryKey,
+			hidden: app.hidden,
 			factory: (accessor, container) => new app(accessor, container)
 		};
 	} else {

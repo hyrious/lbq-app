@@ -1,10 +1,10 @@
 import './app.contribution.ts';
 
-import { app, Menu } from 'electron';
+import { app, dialog, globalShortcut, Menu } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { resolve } from 'node:path';
-import { Disposable } from '../../base/common/lifecycle.ts';
+import { Disposable, toDisposable } from '../../base/common/lifecycle.ts';
 import { InstantiationService } from '../../platform/common/instantiation.ts';
 import { initializeMainServices } from '../../platform/electron-main/ipc.ts';
 import { fixMacOSShellPaths } from '../../platform/node/pathFix.ts';
@@ -30,6 +30,7 @@ export class Application extends Disposable {
 
 	async open(): Promise<void> {
 		Menu.setApplicationMenu(Menu.buildFromTemplate(appMenu));
+		this.registerGlobalShortcuts();
 
 		const windows = this.windows;
 		app.on('activate', () => {
@@ -48,6 +49,19 @@ export class Application extends Disposable {
 
 		app.on('second-instance', reveal);
 		this.register(new TrayService()).onClick(reveal);
+	}
+
+	private registerGlobalShortcuts() {
+		if (process.platform == 'darwin') {
+			const shortcut = 'Control+Alt+Command+W';
+			if (globalShortcut.register(shortcut, () => {
+				this.windows.activateApp('window-mover').catch(error => dialog.showErrorBox('无法打开窗口移动', error.message));
+			})) {
+				this.register(toDisposable(() => globalShortcut.unregister(shortcut)));
+			} else {
+				dialog.showErrorBox('窗口快捷键不可用', '⌃⌥⌘W 已被占用。');
+			}
+		}
 	}
 }
 
