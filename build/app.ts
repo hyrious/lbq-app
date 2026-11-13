@@ -42,7 +42,7 @@ if (rebuilt) {
 
 syncSources(appResources, stamp);
 
-replacePlist(join(destination, 'Contents', 'Info.plist'), 'NSAppleEventsUsageDescription', 'LBQ moves windows');
+replacePlist(join(destination, 'Contents', 'Info.plist'), 'NSAppleEventsUsageDescription', `${productName} moves windows`);
 
 exec('codesign', ['--force', '--deep', '--sign', '-', destination]);
 // Make the app only have to request permissions once.

@@ -1,11 +1,10 @@
 import { BrowserWindow, screen, systemPreferences } from 'electron';
-import { resolve } from 'node:path';
 import { Disposable } from '../../../../base/common/lifecycle.ts';
 import { execFileAsync } from '../../../../base/node/process.ts';
 import { registerMainService } from '../../../../platform/electron-main/ipc.ts';
+import { productName } from '../../../../product.ts';
 import { IWindowMoverService, windowPosition, type WindowTarget } from '../common/windowMover.ts';
-
-const script = resolve(import.meta.dirname, '../node/windows.jxa');
+import script from '../node/windows.jxa' with { type: 'text' };
 
 export class WindowMoverService extends Disposable implements IWindowMoverService {
 	private windows: readonly WindowTarget[] = [];
@@ -20,7 +19,7 @@ export class WindowMoverService extends Disposable implements IWindowMoverServic
 	async list(): Promise<readonly WindowTarget[]> {
 		return this.exclusive(async () => {
 			if (!systemPreferences.isTrustedAccessibilityClient(true)) {
-				throw new Error('请在系统设置的“隐私与安全性 → 辅助功能”中允许 LBQ，然后重试。开发模式下需允许 Electron。');
+				throw new Error(`请在系统设置的“隐私与安全性 → 辅助功能”中允许 ${productName}，然后重试。开发模式下需允许 Electron。`);
 			}
 			this.windows = await this.run<WindowTarget[]>({ action: 'list', pid: process.pid });
 			this.target = undefined;
@@ -68,7 +67,7 @@ export class WindowMoverService extends Disposable implements IWindowMoverServic
 		const execution = new AbortController();
 		this.execution = execution;
 		try {
-			const { stdout } = await execFileAsync('/usr/bin/osascript', ['-l', 'JavaScript', script, JSON.stringify(request)], {
+			const { stdout } = await execFileAsync('/usr/bin/osascript', ['-l', 'JavaScript', '-e', script, JSON.stringify(request)], {
 				timeout: 15000,
 				signal: execution.signal,
 				maxBuffer: 2 * 1024 * 1024
@@ -76,7 +75,7 @@ export class WindowMoverService extends Disposable implements IWindowMoverServic
 			return JSON.parse(stdout);
 		} catch (error) {
 			if (error.killed) throw new Error('读取或操作窗口超时，请关闭无响应的应用后重试。');
-			if (String(error.stderr).includes('-1743')) throw new Error('请在系统设置的“隐私与安全性 → 自动化”中允许 LBQ 控制 System Events，然后重试。');
+			if (String(error.stderr).includes('-1743')) throw new Error(`请在系统设置的“隐私与安全性 → 自动化”中允许 ${productName} 控制 System Events，然后重试。`);
 			throw new Error(String(error.stderr || error.message).trim());
 		} finally {
 			this.execution = undefined;

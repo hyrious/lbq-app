@@ -1,5 +1,6 @@
 // This file can be seen in the 'electron-main' layer.
 import { app, dialog, protocol } from 'electron';
+import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { getErrorMessage } from './base/common/errors.ts';
 import { noop } from './base/common/types.ts';
@@ -15,6 +16,16 @@ registerHooks({
 	resolve(specifier, context, nextResolve) {
 		if (specifier === 'fs') return { format: 'builtin', shortCircuit: true, url: 'node:original-fs' };
 		return nextResolve(specifier, context);
+	},
+	load(url, context, nextLoad) {
+		if (context.importAttributes.type === 'text' && url.startsWith('file:')) {
+			return {
+				format: 'text',
+				shortCircuit: true,
+				source: readFileSync(new URL(url), 'utf8')
+			};
+		}
+		return nextLoad(url, context);
 	}
 });
 
