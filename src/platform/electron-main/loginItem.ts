@@ -30,7 +30,7 @@ class LoginItemService implements ILoginItemService {
 		if (typeof enabled != 'boolean') throw new Error('无效的开机启动设置。');
 		const current = await this.read();
 		if (!current.available) throw new Error(current.message);
-		app.setLoginItemSettings({ openAtLogin: enabled });
+		app.setLoginItemSettings({ openAtLogin: enabled, args: ['--hidden'] });
 		const state = await this.read();
 		if (state.enabled != enabled && !state.message) {
 			return { ...state, message: '开机启动设置未生效，请检查系统的启动项设置。' };

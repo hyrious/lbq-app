@@ -25,7 +25,12 @@ export class Application extends Disposable {
 
 	static async instantiate(): Promise<Application> {
 		await fixMacOSShellPaths();
-		return new Application(await writePreload());
+
+		const preloadSource = stripTypeScriptTypes(await readFile(resolve(import.meta.dirname, '../../preload.ts'), 'utf8'));
+		const preloadPath = resolve(app.getPath('userData'), 'preload.js');
+		await writeFile(preloadPath, preloadSource);
+
+		return new Application(preloadPath);
 	}
 
 	async open(): Promise<void> {
@@ -33,22 +38,22 @@ export class Application extends Disposable {
 		this.registerGlobalShortcuts();
 
 		const windows = this.windows;
-		app.on('activate', () => {
-			if (!app.isReady()) return;
-			if (!windows.mainWindow) windows.openMainWindow();
-		});
+		const hidden = this.isLaunchHidden();
+		windows.onReady(() => hidden || windows.mainWindow?.show());
+		app.on('activate', () => app.isReady() && windows.reveal());
 
-		const reveal = () => {
-			if (windows.mainWindow) {
-				if (windows.mainWindow.isMinimized()) windows.mainWindow.restore();
-				windows.mainWindow.focus();
-			} else {
-				windows.openMainWindow();
-			}
-		};
-
+		const reveal = () => windows.reveal();
 		app.on('second-instance', reveal);
 		this.register(new TrayService()).onClick(reveal);
+	}
+
+	private isLaunchHidden(): boolean {
+		if (app.requestSingleInstanceLock()) {
+			return process.argv.includes('--hidden');
+		} else {
+			app.releaseSingleInstanceLock();
+			return false;
+		}
 	}
 
 	private registerGlobalShortcuts() {
@@ -63,11 +68,4 @@ export class Application extends Disposable {
 			}
 		}
 	}
-}
-
-async function writePreload(): Promise<string> {
-	const preloadSource = stripTypeScriptTypes(await readFile(resolve(import.meta.dirname, '../../preload.ts'), 'utf8'));
-	const preloadPath = resolve(app.getPath('userData'), 'preload.js');
-	await writeFile(preloadPath, preloadSource);
-	return preloadPath;
 }

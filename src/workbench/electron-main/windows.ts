@@ -4,6 +4,7 @@ import { glob, readFile, writeFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { Emitter, type Event } from '../../base/common/event.ts';
 import { Disposable } from '../../base/common/lifecycle.ts';
 import { toNumber, toPlainObject } from '../../base/common/types.ts';
 import { type IConfiguration } from '../../platform/common/ipc.ts';
@@ -23,7 +24,9 @@ export class WindowService extends Disposable {
 
 	private workbenchReady = false;
 	private pendingApp: string | undefined;
-	private opening: Promise<BrowserWindow> | undefined;
+
+	private readonly _onReady = new Emitter<void>();
+	readonly onReady: Event<void> = this._onReady.event;
 
 	private _mainWindow: Electron.BrowserWindow | undefined;
 	get mainWindow(): Electron.BrowserWindow | undefined { return this._mainWindow; }
@@ -105,7 +108,14 @@ export class WindowService extends Disposable {
 
 	async openMainWindow(): Promise<BrowserWindow> {
 		if (this._mainWindow) return this._mainWindow;
-		return this.opening ??= this.createMainWindow().finally(() => { this.opening = undefined; });
+		return this.createMainWindow();
+	}
+
+	async reveal(): Promise<void> {
+		const window = await this.openMainWindow();
+		if (window.isMinimized()) window.restore();
+		window.show();
+		window.focus();
 	}
 
 	private async createMainWindow(): Promise<BrowserWindow> {
@@ -123,6 +133,7 @@ export class WindowService extends Disposable {
 		const window = new BrowserWindow({
 			autoHideMenuBar: true,
 			icon: iconPath,
+			show: false,
 			...state,
 			minWidth: 32 * 6,
 			minHeight: 32 * 2,
@@ -189,15 +200,14 @@ export class WindowService extends Disposable {
 			this._mainWindow = undefined;
 		});
 
+		this._onReady.fire();
+
 		return window;
 	}
 
 	async activateApp(id: string): Promise<void> {
 		this.pendingApp = id;
-		const window = await this.openMainWindow();
-		if (window.isMinimized()) window.restore();
-		window.show();
-		window.focus();
+		await this.reveal();
 		this.sendPendingApp();
 	}
 
