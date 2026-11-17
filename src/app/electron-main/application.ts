@@ -49,7 +49,8 @@ export class Application extends Disposable {
 
 	private isLaunchHidden(): boolean {
 		if (app.requestSingleInstanceLock()) {
-			return process.argv.includes('--hidden');
+			// Windows doesn't have wasOpenedAtLogin, but can pass args on the registry item.
+			return process.argv.includes('--hidden') || app.getLoginItemSettings().wasOpenedAtLogin;
 		} else {
 			app.releaseSingleInstanceLock();
 			return false;
