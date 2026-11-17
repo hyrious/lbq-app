@@ -3,6 +3,8 @@ import { productName } from '../../product.ts';
 import { ILoginItemService, type ILoginItemState } from '../common/loginItem.ts';
 import { registerMainService } from './ipc.ts';
 
+const launchArguments = ['--hidden'];
+
 class LoginItemService implements ILoginItemService {
 	async read(): Promise<ILoginItemState> {
 		if (process.platform != 'darwin' && process.platform != 'win32') {
@@ -12,7 +14,9 @@ class LoginItemService implements ILoginItemService {
 			return { available: false, enabled: false, message: '请在安装后的应用中设置开机启动。' };
 		}
 
-		const settings = app.getLoginItemSettings();
+		const settings = process.platform == 'win32'
+			? app.getLoginItemSettings({ args: launchArguments })
+			: app.getLoginItemSettings();
 		let enabled = settings.openAtLogin;
 		let message = '';
 		if (process.platform == 'darwin') {
@@ -30,7 +34,7 @@ class LoginItemService implements ILoginItemService {
 		if (typeof enabled != 'boolean') throw new Error('无效的开机启动设置。');
 		const current = await this.read();
 		if (!current.available) throw new Error(current.message);
-		app.setLoginItemSettings({ openAtLogin: enabled, args: ['--hidden'] });
+		app.setLoginItemSettings({ openAtLogin: enabled, enabled, args: launchArguments });
 		const state = await this.read();
 		if (state.enabled != enabled && !state.message) {
 			return { ...state, message: '开机启动设置未生效，请检查系统的启动项设置。' };
