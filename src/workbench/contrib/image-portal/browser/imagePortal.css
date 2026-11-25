@@ -76,6 +76,7 @@
   box-sizing: border-box;
   border: 0;
   border-radius: 4px;
+  -electron-corner-smoothing: system-ui;
   padding: 6px 10px;
   color: inherit;
   background: transparent;

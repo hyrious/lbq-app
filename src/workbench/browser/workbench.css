@@ -94,6 +94,7 @@
   aspect-ratio: 1;
   border: 1px solid light-dark(#c8c8c8, #454545);
   border-radius: 3px;
+  -electron-corner-smoothing: system-ui;
   background: light-dark(#f8f8f8, #202020);
   box-shadow: 0 2px 8px light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 36%));
   font: inherit;
